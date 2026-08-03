@@ -33,7 +33,7 @@ yocto 테스트 입력은 실행 시 [fosslight_yocto_scanner/test_files](https:
 
 실행 시각·분석 경로처럼 매번 달라지는 값은 비교에서 제외합니다.  
 그 외(버전 정보, SRC/BIN/DEP 내용 등)에 차이가 있으면 Failure입니다.  
-하나라도 차이가 있으면 전체 워크플로가 Failure입니다.
+scanner / yocto Actions는 **서로 독립**이라, 한쪽 Failure가 다른 쪽 실행·결과에 영향을 주지 않습니다.
 
 전체 처리 흐름은 [docs/flowchart.md](docs/flowchart.md)를 참고하세요.
 
@@ -87,7 +87,12 @@ pip install fosslight_yocto     # yocto 테스트
 
 ## 스케줄 (GitHub Actions)
 
-워크플로: [`.github/workflows/daily_scanner_test.yml`](.github/workflows/daily_scanner_test.yml)
+테스트별로 **별도 workflow**로 실행됩니다.
+
+| Workflow | 파일 | 스크립트 |
+|----------|------|----------|
+| **Daily fosslight_scanner Test** | [`.github/workflows/daily_scanner_test.yml`](.github/workflows/daily_scanner_test.yml) | `scripts/run_scanner_test.sh` |
+| **Daily fosslight_yocto Test** | [`.github/workflows/daily_yocto_test.yml`](.github/workflows/daily_yocto_test.yml) | `scripts/run_yocto_test.sh` |
 
 | 시각 (KST) | cron |
 |------------|------|
@@ -96,7 +101,7 @@ pip install fosslight_yocto     # yocto 테스트
 | 16:00 | `0 16 * * *` |
 
 타임존: `Asia/Seoul`  
-수동 실행: Actions → **Daily FOSSLight Scanner Test** → **Run workflow**
+수동 실행: Actions 탭에서 각 workflow의 **Run workflow** 로 개별 실행할 수 있습니다.
 
 ## 로컬 실행
 
@@ -104,9 +109,9 @@ Python 3.10+ 가 필요합니다.
 
 ```bash
 chmod +x scripts/*.sh
-./scripts/run_daily_test.sh          # scanner + yocto 전체
 ./scripts/run_scanner_test.sh        # scanner만
 ./scripts/run_yocto_test.sh          # yocto만
+./scripts/run_daily_test.sh          # 로컬에서 둘 다 실행 (선택)
 ```
 
 결과는 `results/<timestamp>/` 아래에 저장됩니다.
@@ -130,14 +135,16 @@ python3 scripts/compare_excel.py path/to/pypi.xlsx path/to/github.xlsx -o diff.j
 
 ```text
 fosslight_scanner_test/
-├── .github/workflows/        # 일일 스케줄 CI
-├── docs/                     # 문서·플로우차트
+├── .github/workflows/
+│   ├── daily_scanner_test.yml    # fosslight_scanner CI
+│   └── daily_yocto_test.yml      # fosslight_yocto CI
+├── docs/
 ├── scripts/
-│   ├── common.sh             # 공통 헬퍼
-│   ├── run_daily_test.sh     # 전체 테스트 오케스트레이션
-│   ├── run_scanner_test.sh   # fosslight_scanner 비교
-│   ├── run_yocto_test.sh     # fosslight_yocto 비교
-│   └── compare_excel.py      # Excel 셀/행 비교
+│   ├── common.sh
+│   ├── run_daily_test.sh         # 로컬 전체 실행(선택)
+│   ├── run_scanner_test.sh
+│   ├── run_yocto_test.sh
+│   └── compare_excel.py
 ├── README.md
 └── LICENSE
 ```

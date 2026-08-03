@@ -6,12 +6,14 @@
 
 ```mermaid
 flowchart TD
-    Start([시작<br/>Schedule 09:00 / 11:00 / 16:00 KST<br/>또는 workflow_dispatch]) --> Setup[Checkout + Python 3.12 준비]
+    Start([시작<br/>Schedule 09:00 / 11:00 / 16:00 KST<br/>또는 workflow_dispatch]) --> Split
 
-    Setup --> T1
-    Setup --> T2
+    Split[별도 GitHub Actions workflow]
 
-    subgraph T1["Test 1: fosslight_scanner"]
+    Split --> T1
+    Split --> T2
+
+    subgraph T1["Workflow: Daily fosslight_scanner Test"]
         direction TB
         S1["PyPI: pip install fosslight_scanner"]
         S2["GitHub: scanner + util/source/…"]
@@ -20,9 +22,12 @@ flowchart TD
         S1 --> S3
         S2 --> S3
         S3 --> S4
+        S4 --> SR{차이?}
+        SR -->|없음| SPass([✅ scanner Success])
+        SR -->|있음| SFail([❌ scanner Failure])
     end
 
-    subgraph T2["Test 2: fosslight_yocto"]
+    subgraph T2["Workflow: Daily fosslight_yocto Test"]
         direction TB
         Y0[sparse checkout test_files]
         Y1["PyPI: pip install fosslight_yocto"]
@@ -34,26 +39,24 @@ flowchart TD
         Y1 --> Y3
         Y2 --> Y3
         Y3 --> Y4
+        Y4 --> YR{차이?}
+        YR -->|없음| YPass([✅ yocto Success])
+        YR -->|있음| YFail([❌ yocto Failure])
     end
 
-    S4 --> Aggregate
-    Y4 --> Aggregate
-
-    Aggregate{모든 테스트<br/>차이 없음?}
-    Aggregate -->|예| Pass([✅ Success / exit 0])
-    Aggregate -->|하나라도 차이| Fail([❌ Failure / exit 1<br/>diff 출력 + Artifact])
-
     style Start fill:#e8f4fc,stroke:#4a90c8
-    style Pass fill:#e6f6e6,stroke:#3a9a3a
-    style Fail fill:#fde8e8,stroke:#c84a4a
+    style SPass fill:#e6f6e6,stroke:#3a9a3a
+    style YPass fill:#e6f6e6,stroke:#3a9a3a
+    style SFail fill:#fde8e8,stroke:#c84a4a
+    style YFail fill:#fde8e8,stroke:#c84a4a
     style T1 fill:#f7f9fc,stroke:#8aa0b8
     style T2 fill:#f7f9fc,stroke:#8aa0b8
 ```
 
 > **판정 기준**
-> - **차이 없음** → Success (Failure가 아님)
-> - **차이 있음** → Failure이며, 달라진 값을 로그/`excel_diff`로 출력해 확인 가능
-> - scanner / yocto 중 **하나라도** 차이가 있으면 전체 Failure
+> - **차이 없음** → 해당 workflow Success
+> - **차이 있음** → 해당 workflow Failure + diff 출력
+> - scanner / yocto workflow는 **독립** 실행·판정
 
 ## Detail — fosslight_yocto
 
@@ -117,9 +120,10 @@ flowchart LR
 
 | Path | Role |
 |------|------|
-| [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | scanner + yocto 오케스트레이션 |
 | [`scripts/run_scanner_test.sh`](../scripts/run_scanner_test.sh) | fosslight_scanner 비교 |
 | [`scripts/run_yocto_test.sh`](../scripts/run_yocto_test.sh) | fosslight_yocto 비교 |
+| [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | 로컬에서 둘 다 실행(선택) |
 | [`scripts/compare_excel.py`](../scripts/compare_excel.py) | Excel 셀/행 비교 |
 | [`scripts/common.sh`](../scripts/common.sh) | 공통 헬퍼 |
-| [`.github/workflows/daily_scanner_test.yml`](../.github/workflows/daily_scanner_test.yml) | 스케줄 / 수동 실행 CI |
+| [`.github/workflows/daily_scanner_test.yml`](../.github/workflows/daily_scanner_test.yml) | scanner CI |
+| [`.github/workflows/daily_yocto_test.yml`](../.github/workflows/daily_yocto_test.yml) | yocto CI |

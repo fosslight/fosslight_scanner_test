@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-name: Daily fosslight_scanner Test
+name: Daily fosslight_yocto Test
 
 on:
   schedule:
@@ -12,12 +12,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: daily-fosslight-scanner-test
+  group: daily-fosslight-yocto-test
   cancel-in-progress: false
 
 jobs:
-  fosslight-scanner:
-    name: PyPI vs GitHub (fosslight_scanner)
+  fosslight-yocto:
+    name: PyPI vs GitHub (fosslight_yocto)
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -42,18 +42,18 @@ jobs:
       - name: Make scripts executable
         run: chmod +x scripts/*.sh scripts/compare_excel.py
 
-      - name: Run fosslight_scanner comparison
+      - name: Run fosslight_yocto comparison
         env:
           RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}
           WORK_DIR: ${{ github.workspace }}/.work
           KEEP_WORK: "0"
-        run: ./scripts/run_scanner_test.sh
+        run: ./scripts/run_yocto_test.sh
 
-      - name: Upload scanner artifacts
+      - name: Upload yocto artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fosslight-scanner-compare-${{ github.run_id }}
-          path: results/${{ github.run_id }}/scanner/
+          name: fosslight-yocto-compare-${{ github.run_id }}
+          path: results/${{ github.run_id }}/yocto/
           if-no-files-found: warn
           retention-days: 30
