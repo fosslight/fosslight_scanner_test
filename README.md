@@ -18,8 +18,8 @@ FOSSLight Scanner 계열 패키지의 **PyPI 배포본**과 **GitHub 최신 소�
 
 | Test | PyPI 설치 | GitHub 설치 | 실행 명령 |
 |------|-----------|-------------|-----------|
-| **fosslight_scanner** | `pip install fosslight_scanner` | scanner + util/source/dependency/binary/android/yocto | `fosslight -w https://github.com/LGE-OSS/example` |
-| **fosslight_yocto** | `pip install fosslight_yocto` | yocto + util/source/binary | `fosslight_yocto -ip … -i … -b … -p … -y … -o test_result` |
+| **fosslight_scanner** | `pip install fosslight_scanner` | util/source/dependency/binary/scanner/android/yocto (git) | `fosslight -w https://github.com/LGE-OSS/example` |
+| **fosslight_yocto** | `pip install fosslight_yocto` | util/source/dependency/binary/scanner/android/yocto (git, scanner와 동일) | `fosslight_yocto -ip … -i … -b … -p … -y … -o test_result` |
 
 yocto 테스트 입력은 실행 시 [fosslight_yocto_scanner/test_files](https://github.com/fosslight/fosslight_yocto_scanner/tree/main/test_files)를 저장소 루트 `test_files/`로 받아 사용합니다.  
 (`bom.json`, `installed-packages.txt`, `installed-package-names.txt`, `oss-pkg-info.yaml`, `packages/` 포함)
@@ -67,7 +67,8 @@ pip install fosslight_yocto     # yocto 테스트
 ### 2) fosslight_yocto
 
 1. PyPI venv → `fosslight_yocto` 설치
-2. GitHub venv → yocto/util/source/binary 설치
+2. GitHub venv → scanner와 동일하게 util/source/dependency/binary/scanner/android/yocto를 git 설치
+   (하위 패키지 `fosslight_util`, `fosslight_source`, `fosslight_binary` 등도 git main 사용)
 3. 동일 명령 실행:
    ```bash
    fosslight_yocto \

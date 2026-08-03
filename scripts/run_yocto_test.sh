@@ -23,13 +23,6 @@ GIT_VENV="${WORK_DIR}/venv_yocto_git"
 PYPI_OUT="${RESULT_DIR}/pypi"
 GIT_OUT="${RESULT_DIR}/github"
 
-GIT_PACKAGES=(
-  "git+https://github.com/fosslight/fosslight_util.git"
-  "git+https://github.com/fosslight/fosslight_source_scanner.git"
-  "git+https://github.com/fosslight/fosslight_binary_scanner.git"
-  "git+https://github.com/fosslight/fosslight_yocto_scanner.git"
-)
-
 # Exact command requested by the test (paths relative to ROOT_DIR)
 YOCTO_CMD_ARGS=(
   -ip test_files/installed-packages.txt
@@ -89,9 +82,11 @@ log "Creating GitHub virtualenv for fosslight_yocto"
 create_venv "${GIT_VENV}" "${PYTHON_BIN}"
 # shellcheck disable=SC1090
 source "${GIT_VENV}/bin/activate"
-log "Installing fosslight_yocto and dependencies from GitHub"
+log "Installing FOSSLight packages from GitHub (same set as scanner test)"
 python -m pip install "${GIT_PACKAGES[@]}"
-print_package_versions "yocto-GitHub" fosslight_yocto fosslight_util fosslight_source fosslight_binary
+print_package_versions "yocto-GitHub" \
+  fosslight_yocto fosslight_util fosslight_source fosslight_binary \
+  fosslight_dependency fosslight_scanner fosslight_android
 run_yocto "${GIT_OUT}" "github"
 cp -f "${GIT_OUT}/fosslight_report_yocto.xlsx" "${RESULT_DIR}/fosslight_report_yocto_github.xlsx"
 deactivate

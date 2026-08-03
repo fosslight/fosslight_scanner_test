@@ -31,7 +31,7 @@ flowchart TD
         direction TB
         Y0[sparse checkout test_files]
         Y1["PyPI: pip install fosslight_yocto"]
-        Y2["GitHub: yocto + util/source/binary"]
+        Y2["GitHub: util/source/dependency/binary<br/>scanner/android/yocto (scanner와 동일)"]
         Y3["fosslight_yocto -ip -i -b -p -y -o"]
         Y4[Excel 비교]
         Y0 --> Y1
@@ -73,7 +73,7 @@ flowchart TD
     end
 
     subgraph GitHub["GitHub"]
-        G1["pip install git+…/fosslight_yocto_scanner"]
+        G1["pip install GIT_PACKAGES<br/>(util/source/dependency/binary/scanner/android/yocto)"]
         G2["동일 fosslight_yocto 명령"]
         G3[fosslight_report_yocto_github.xlsx]
         G1 --> G2 --> G3

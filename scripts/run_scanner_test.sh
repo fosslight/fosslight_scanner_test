@@ -20,16 +20,6 @@ GIT_VENV="${WORK_DIR}/venv_scanner_git"
 PYPI_OUT="${SCANNER_RESULT_DIR}/pypi"
 GIT_OUT="${SCANNER_RESULT_DIR}/github"
 
-GIT_PACKAGES=(
-  "git+https://github.com/fosslight/fosslight_util.git"
-  "git+https://github.com/fosslight/fosslight_source_scanner.git"
-  "git+https://github.com/fosslight/fosslight_dependency_scanner.git"
-  "git+https://github.com/fosslight/fosslight_binary_scanner.git"
-  "git+https://github.com/fosslight/fosslight_scanner.git"
-  "git+https://github.com/fosslight/fosslight_android_scanner.git"
-  "git+https://github.com/fosslight/fosslight_yocto_scanner.git"
-)
-
 run_scan() {
   local out_dir="$1"
   mkdir -p "${out_dir}"

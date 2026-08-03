@@ -6,6 +6,17 @@ log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
 }
 
+# Shared GitHub installs for PyPI-vs-Git comparison (subpackages from git main).
+GIT_PACKAGES=(
+  "git+https://github.com/fosslight/fosslight_util.git"
+  "git+https://github.com/fosslight/fosslight_source_scanner.git"
+  "git+https://github.com/fosslight/fosslight_dependency_scanner.git"
+  "git+https://github.com/fosslight/fosslight_binary_scanner.git"
+  "git+https://github.com/fosslight/fosslight_scanner.git"
+  "git+https://github.com/fosslight/fosslight_android_scanner.git"
+  "git+https://github.com/fosslight/fosslight_yocto_scanner.git"
+)
+
 create_venv() {
   local venv_dir="$1"
   local python_bin="${2:-python3}"
