@@ -100,8 +100,7 @@ compare_excels \
   "${RESULT_DIR}" \
   "fosslight_yocto" \
   "${RESULT_DIR}/fosslight_report_yocto_pypi.xlsx" \
-  "${RESULT_DIR}/fosslight_report_yocto_github.xlsx" \
-  0
+  "${RESULT_DIR}/fosslight_report_yocto_github.xlsx"
 RC=$?
 set -e
 deactivate

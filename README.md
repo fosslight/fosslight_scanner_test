@@ -3,16 +3,16 @@
 FOSSLight Scanner 계열 패키지의 **PyPI 배포본**과 **GitHub 최신 소스** 결과가 같은지 자동으로 검증하는 저장소입니다.
 
 공개된 FOSSLight 스캐너들이 PyPI에 올라간 버전과 GitHub `main` 개발 버전이 서로 다른 분석 결과를 내지 않는지 확인하는 것이 목적입니다.  
-동일 입력으로 스캔한 뒤, 생성된 Report Excel을 비교해 달라진 값을 출력합니다.
+동일 입력으로 스캔한 뒤, 생성된 Report Excel을 **`fosslight compare` BOM 기준**으로 비교하고 결과를 표로 출력합니다.
 
 ## 이 Repository가 하는 일
 
 | 구분 | 설명 |
 |------|------|
-| **목적** | PyPI 설치본 vs GitHub 설치본의 스캔 결과(Excel) 회귀(regression) 감지 |
+| **목적** | PyPI 설치본 vs GitHub 설치본의 스캔 결과 회귀(regression) 감지 |
 | **대상 도구** | `fosslight_scanner`, `fosslight_yocto` (및 관련 util/source/binary 등) |
 | **실행 주기** | 매일 오전 9시, 11시, 오후 4시 (KST) — GitHub Actions |
-| **결과 확인** | Actions Job Summary / Artifact (`excel_diff`, 양쪽 Excel) |
+| **결과 확인** | Actions Job Summary / Artifact (`fosslight_compare` 표, 양쪽 Excel) |
 
 ### 포함 테스트
 
@@ -28,11 +28,15 @@ yocto 테스트 입력은 실행 시 [fosslight_yocto_scanner/test_files](https:
 
 | 비교 결과 | CI 결과 | 설명 |
 |-----------|---------|------|
-| **차이 없음** | ✅ Success | PyPI와 GitHub 결과가 동일 (Failure가 아님) |
-| **차이 있음** | ❌ Failure | 달라진 값을 로그·Artifact로 출력해 확인 |
+| **차이 없음** | ✅ Success | `fosslight compare` BOM 결과 동일 |
+| **차이 있음** | ❌ Failure | add / delete / change 를 표로 출력 |
 
-실행 시각·분석 경로처럼 매번 달라지는 값은 비교에서 제외합니다.  
-그 외(버전 정보, SRC/BIN/DEP 내용 등)에 차이가 있으면 Failure입니다.  
+비교는 **`fosslight compare`와 동일한 BOM 비교**입니다.  
+결과는 아래 컬럼의 Markdown 표로 출력되며, Actions Job Summary에도 표시됩니다.
+
+| Status | Before OSS | Before License | After OSS | After License |
+|--------|------------|----------------|-----------|---------------|
+
 scanner / yocto Actions는 **서로 독립**이라, 한쪽 Failure가 다른 쪽 실행·결과에 영향을 주지 않습니다.
 
 전체 처리 흐름은 [docs/flowchart.md](docs/flowchart.md)를 참고하세요.
@@ -62,13 +66,12 @@ pip install fosslight_yocto     # yocto 테스트
 
 1. PyPI venv → `fosslight_scanner` 설치 → `fosslight -w https://github.com/LGE-OSS/example`
 2. GitHub venv → 관련 패키지 설치 → 동일 명령 실행
-3. Excel 비교 (`compare_excel.py` + `fosslight compare`)
+3. `fosslight compare` BOM 비교 → 표 출력
 
 ### 2) fosslight_yocto
 
 1. PyPI venv → `fosslight_yocto` 설치
 2. GitHub venv → scanner와 동일하게 util/source/dependency/binary/scanner/android/yocto를 git 설치
-   (하위 패키지 `fosslight_util`, `fosslight_source`, `fosslight_binary` 등도 git main 사용)
 3. 동일 명령 실행:
    ```bash
    fosslight_yocto \
@@ -79,12 +82,12 @@ pip install fosslight_yocto     # yocto 테스트
      -y test_files/oss-pkg-info.yaml \
      -o test_result
    ```
-4. 생성된 `fosslight_report_yocto_*.xlsx` 비교
+4. `fosslight compare` BOM 비교 → 표 출력
 
 비교 결과:
 
 - 차이 없음 → 종료 코드 `0` (Success)
-- 차이 있음 → 종료 코드 `1` (Failure) + 달라진 값 출력
+- 차이 있음 → 종료 코드 `1` (Failure) + add/delete/change 표 출력
 
 ## 스케줄 (GitHub Actions)
 
@@ -109,7 +112,7 @@ pip install fosslight_yocto     # yocto 테스트
 Python 3.10+ 가 필요합니다.
 
 ```bash
-chmod +x scripts/*.sh
+chmod +x scripts/*.sh scripts/*.py
 ./scripts/run_scanner_test.sh        # scanner만
 ./scripts/run_yocto_test.sh          # yocto만
 ./scripts/run_daily_test.sh          # 로컬에서 둘 다 실행 (선택)
@@ -121,15 +124,15 @@ chmod +x scripts/*.sh
 |------|------|
 | `scanner/fosslight_report_pypi.xlsx` | scanner PyPI 결과 |
 | `scanner/fosslight_report_github.xlsx` | scanner GitHub 결과 |
-| `scanner/excel_diff.*` | scanner 비교 결과 |
+| `scanner/fosslight_compare.md` / `.json` | fosslight compare BOM 표 |
 | `yocto/fosslight_report_yocto_pypi.xlsx` | yocto PyPI 결과 |
 | `yocto/fosslight_report_yocto_github.xlsx` | yocto GitHub 결과 |
-| `yocto/excel_diff.*` | yocto 비교 결과 |
+| `yocto/fosslight_compare.md` / `.json` | fosslight compare BOM 표 |
 
-Excel만 따로 비교하려면:
+BOM 비교만 따로 실행하려면:
 
 ```bash
-python3 scripts/compare_excel.py path/to/pypi.xlsx path/to/github.xlsx -o diff.json
+python3 scripts/run_fosslight_compare.py path/to/pypi.xlsx path/to/github.xlsx --md diff.md
 ```
 
 ## 디렉터리 구조
@@ -142,10 +145,11 @@ fosslight_scanner_test/
 ├── docs/
 ├── scripts/
 │   ├── common.sh
-│   ├── run_daily_test.sh         # 로컬 전체 실행(선택)
+│   ├── run_fosslight_compare.py  # fosslight compare BOM → 표
 │   ├── run_scanner_test.sh
 │   ├── run_yocto_test.sh
-│   └── compare_excel.py
+│   ├── run_daily_test.sh         # 로컬 전체 실행(선택)
+│   └── compare_excel.py          # (optional) 셀 단위 비교
 ├── README.md
 └── LICENSE
 ```

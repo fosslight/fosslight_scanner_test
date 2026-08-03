@@ -61,15 +61,14 @@ GIT_EXCEL="$(find_excel "${GIT_OUT}" 'fosslight_report*.xlsx' 'FOSSLight-Report*
 log "GitHub excel: ${GIT_EXCEL}"
 cp -f "${GIT_EXCEL}" "${SCANNER_RESULT_DIR}/fosslight_report_github.xlsx"
 
-# --- Compare ---
+# --- Compare (fosslight compare BOM table) ---
 set +e
 compare_excels \
   "${ROOT_DIR}" \
   "${SCANNER_RESULT_DIR}" \
   "fosslight_scanner" \
   "${SCANNER_RESULT_DIR}/fosslight_report_pypi.xlsx" \
-  "${SCANNER_RESULT_DIR}/fosslight_report_github.xlsx" \
-  1
+  "${SCANNER_RESULT_DIR}/fosslight_report_github.xlsx"
 RC=$?
 set -e
 deactivate

@@ -5,6 +5,8 @@ results/
 test_files/
 test_result_pypi/
 test_result_github/
+fosslight_log/
+fosslight_compare_*.html
 __pycache__/
 *.pyc
 .venv/

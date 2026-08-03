@@ -18,7 +18,7 @@ flowchart TD
         S1["PyPI: pip install fosslight_scanner"]
         S2["GitHub: scanner + util/source/…"]
         S3["fosslight -w LGE-OSS/example"]
-        S4[Excel 비교]
+        S4["fosslight compare BOM 표"]
         S1 --> S3
         S2 --> S3
         S3 --> S4
@@ -33,7 +33,7 @@ flowchart TD
         Y1["PyPI: pip install fosslight_yocto"]
         Y2["GitHub: util/source/dependency/binary<br/>scanner/android/yocto (scanner와 동일)"]
         Y3["fosslight_yocto -ip -i -b -p -y -o"]
-        Y4[Excel 비교]
+        Y4["fosslight compare BOM 표"]
         Y0 --> Y1
         Y0 --> Y2
         Y1 --> Y3
@@ -55,7 +55,7 @@ flowchart TD
 
 > **판정 기준**
 > - **차이 없음** → 해당 workflow Success
-> - **차이 있음** → 해당 workflow Failure + diff 출력
+> - **차이 있음** → 해당 workflow Failure + fosslight compare 표 출력
 > - scanner / yocto workflow는 **독립** 실행·판정
 
 ## Detail — fosslight_yocto
@@ -79,51 +79,41 @@ flowchart TD
         G1 --> G2 --> G3
     end
 
-    P3 --> Cmp[compare_excel.py]
+    P3 --> Cmp[fosslight compare BOM 표]
     G3 --> Cmp
     Cmp --> Out{차이?}
     Out -->|없음| OK([✅ Success])
-    Out -->|있음| NG([❌ Failure + diff 출력])
+    Out -->|있음| NG([❌ Failure + compare 표])
 
     style OK fill:#e6f6e6,stroke:#3a9a3a
     style NG fill:#fde8e8,stroke:#c84a4a
 ```
 
-## Detail — 비교 판정
+## Detail — 비교 판정 (fosslight compare)
 
 ```mermaid
 flowchart LR
-    Excel[양쪽 FOSSLight Report Excel] --> Sheets{시트별 비교}
+    Excel[양쪽 FOSSLight Report Excel] --> Bom[BOM 추출<br/>OSS Name / Version / License]
+    Bom --> Cmp[compare_yaml<br/>add / delete / change]
+    Cmp --> Table["Markdown 표 출력<br/>Status / Before / After"]
+    Table --> Out{차이?}
+    Out -->|없음| OK["✅ Success<br/>exit 0"]
+    Out -->|있음| NG["❌ Failure<br/>exit 1"]
 
-    Sheets --> Info[Scanner Info]
-    Sheets --> Data[SRC / BIN / DEP 등]
-
-    Info --> Ignore["무시: Running time,<br/>Analyzed path<br/>실행마다 달라짐"]
-    Info --> Check["검사: Tool information,<br/>Comment, Python version 등"]
-
-    Data --> Align[경로 / Package URL 기준<br/>행 정렬]
-    Align --> Cell[셀 값 비교<br/>ID, TLSH 제외]
-
-    Check --> Diff[차이 목록 출력]
-    Cell --> Diff
-
-    Diff --> Out{차이 개수}
-    Out -->|0 차이 없음| OK["✅ Success<br/>exit 0"]
-    Out -->|≥1 차이 있음| NG["❌ Failure<br/>exit 1<br/>diff 출력으로 확인"]
-
-    style Ignore fill:#f0f0f0,stroke:#999
     style OK fill:#e6f6e6,stroke:#3a9a3a
     style NG fill:#fde8e8,stroke:#c84a4a
 ```
+
+표 컬럼: `Status | Before OSS | Before License | After OSS | After License`
 
 ## Related files
 
 | Path | Role |
 |------|------|
+| [`scripts/run_fosslight_compare.py`](../scripts/run_fosslight_compare.py) | fosslight compare BOM → Markdown 표 |
 | [`scripts/run_scanner_test.sh`](../scripts/run_scanner_test.sh) | fosslight_scanner 비교 |
 | [`scripts/run_yocto_test.sh`](../scripts/run_yocto_test.sh) | fosslight_yocto 비교 |
 | [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | 로컬에서 둘 다 실행(선택) |
-| [`scripts/compare_excel.py`](../scripts/compare_excel.py) | Excel 셀/행 비교 |
 | [`scripts/common.sh`](../scripts/common.sh) | 공통 헬퍼 |
 | [`.github/workflows/daily_scanner_test.yml`](../.github/workflows/daily_scanner_test.yml) | scanner CI |
 | [`.github/workflows/daily_yocto_test.yml`](../.github/workflows/daily_yocto_test.yml) | yocto CI |
