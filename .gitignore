@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+.work/
+results/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.xlsx
+!tests/**/*.xlsx
+.DS_Store
