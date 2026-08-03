@@ -8,58 +8,83 @@
 flowchart TD
     Start([시작<br/>Schedule 09:00 / 11:00 / 16:00 KST<br/>또는 workflow_dispatch]) --> Setup[Checkout + Python 3.12 준비]
 
-    Setup --> Parallel{두 환경에서<br/>동일 스캔 수행}
+    Setup --> T1
+    Setup --> T2
 
-    Parallel --> PyPI
-    Parallel --> GitHub
-
-    subgraph PyPI["① PyPI 기준선"]
+    subgraph T1["Test 1: fosslight_scanner"]
         direction TB
-        P1[venv_pypi 생성]
-        P2["pip install fosslight_scanner"]
-        P3["fosslight -w https://github.com/LGE-OSS/example"]
-        P4[FOSSLight-Report_pypi.xlsx]
-        P1 --> P2 --> P3 --> P4
+        S1["PyPI: pip install fosslight_scanner"]
+        S2["GitHub: scanner + util/source/…"]
+        S3["fosslight -w LGE-OSS/example"]
+        S4[Excel 비교]
+        S1 --> S3
+        S2 --> S3
+        S3 --> S4
     end
 
-    subgraph GitHub["② GitHub 검증 대상"]
+    subgraph T2["Test 2: fosslight_yocto"]
         direction TB
-        G1[venv_git 생성]
-        G2[GitHub main 패키지 설치]
-        G2a["util / source / dependency<br/>binary / scanner<br/>android / yocto"]
-        G3["fosslight -w https://github.com/LGE-OSS/example"]
-        G4[FOSSLight-Report_github.xlsx]
-        G1 --> G2 --> G2a --> G3 --> G4
+        Y0[sparse checkout test_files]
+        Y1["PyPI: pip install fosslight_yocto"]
+        Y2["GitHub: yocto + util/source/binary"]
+        Y3["fosslight_yocto -ip -i -b -p -y -o"]
+        Y4[Excel 비교]
+        Y0 --> Y1
+        Y0 --> Y2
+        Y1 --> Y3
+        Y2 --> Y3
+        Y3 --> Y4
     end
 
-    P4 --> Compare
-    G4 --> Compare
+    S4 --> Aggregate
+    Y4 --> Aggregate
 
-    subgraph Compare["③ 결과 비교"]
-        direction TB
-        C1[compare_excel.py<br/>셀 / 행 단위 비교]
-        C2[fosslight compare<br/>BOM 단위 비교]
-        C3[excel_diff.txt / .json 출력]
-        C1 --> C3
-        C2 --> C3
-    end
-
-    Compare --> Decision{Excel 결과<br/>차이 있음?}
-
-    Decision -->|차이 없음| Pass([✅ Success / exit 0<br/>PyPI와 GitHub 결과 동일])
-    Decision -->|차이 있음| Fail([❌ Failure / exit 1<br/>차이 내용 출력 + Artifact])
+    Aggregate{모든 테스트<br/>차이 없음?}
+    Aggregate -->|예| Pass([✅ Success / exit 0])
+    Aggregate -->|하나라도 차이| Fail([❌ Failure / exit 1<br/>diff 출력 + Artifact])
 
     style Start fill:#e8f4fc,stroke:#4a90c8
     style Pass fill:#e6f6e6,stroke:#3a9a3a
     style Fail fill:#fde8e8,stroke:#c84a4a
-    style PyPI fill:#f7f9fc,stroke:#8aa0b8
-    style GitHub fill:#f7f9fc,stroke:#8aa0b8
-    style Compare fill:#fff8e8,stroke:#c9a227
+    style T1 fill:#f7f9fc,stroke:#8aa0b8
+    style T2 fill:#f7f9fc,stroke:#8aa0b8
 ```
 
 > **판정 기준**
 > - **차이 없음** → Success (Failure가 아님)
 > - **차이 있음** → Failure이며, 달라진 값을 로그/`excel_diff`로 출력해 확인 가능
+> - scanner / yocto 중 **하나라도** 차이가 있으면 전체 Failure
+
+## Detail — fosslight_yocto
+
+```mermaid
+flowchart TD
+    Fetch[fosslight_yocto_scanner<br/>test_files sparse checkout] --> PyPI
+    Fetch --> GitHub
+
+    subgraph PyPI["PyPI"]
+        P1["pip install fosslight_yocto"]
+        P2["fosslight_yocto -ip … -i … -b … -p … -y … -o test_result"]
+        P3[fosslight_report_yocto_pypi.xlsx]
+        P1 --> P2 --> P3
+    end
+
+    subgraph GitHub["GitHub"]
+        G1["pip install git+…/fosslight_yocto_scanner"]
+        G2["동일 fosslight_yocto 명령"]
+        G3[fosslight_report_yocto_github.xlsx]
+        G1 --> G2 --> G3
+    end
+
+    P3 --> Cmp[compare_excel.py]
+    G3 --> Cmp
+    Cmp --> Out{차이?}
+    Out -->|없음| OK([✅ Success])
+    Out -->|있음| NG([❌ Failure + diff 출력])
+
+    style OK fill:#e6f6e6,stroke:#3a9a3a
+    style NG fill:#fde8e8,stroke:#c84a4a
+```
 
 ## Detail — 비교 판정
 
@@ -88,35 +113,13 @@ flowchart LR
     style NG fill:#fde8e8,stroke:#c84a4a
 ```
 
-## Sequence
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant GA as GitHub Actions
-    participant Py as venv_pypi
-    participant Gh as venv_git
-    participant Ex as LGE-OSS/example
-    participant Cmp as compare_excel.py
-
-    GA->>Py: create venv + pip install fosslight_scanner
-    Py->>Ex: fosslight -w (clone & analyze)
-    Ex-->>Py: FOSSLight-Report_pypi.xlsx
-
-    GA->>Gh: create venv + pip install git+https://...
-    Gh->>Ex: fosslight -w (clone & analyze)
-    Ex-->>Gh: FOSSLight-Report_github.xlsx
-
-    GA->>Cmp: compare pypi.xlsx vs github.xlsx
-    Cmp-->>GA: excel_diff + exit code
-    GA->>GA: fosslight compare (BOM)
-    GA->>GA: Upload artifacts / Job Summary
-```
-
 ## Related files
 
 | Path | Role |
 |------|------|
-| [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | 설치 · 스캔 · 비교 오케스트레이션 |
+| [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | scanner + yocto 오케스트레이션 |
+| [`scripts/run_scanner_test.sh`](../scripts/run_scanner_test.sh) | fosslight_scanner 비교 |
+| [`scripts/run_yocto_test.sh`](../scripts/run_yocto_test.sh) | fosslight_yocto 비교 |
 | [`scripts/compare_excel.py`](../scripts/compare_excel.py) | Excel 셀/행 비교 |
+| [`scripts/common.sh`](../scripts/common.sh) | 공통 헬퍼 |
 | [`.github/workflows/daily_scanner_test.yml`](../.github/workflows/daily_scanner_test.yml) | 스케줄 / 수동 실행 CI |

@@ -18,7 +18,7 @@ concurrency:
 jobs:
   compare-pypi-vs-github:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -39,9 +39,9 @@ jobs:
             build-essential
 
       - name: Make scripts executable
-        run: chmod +x scripts/run_daily_test.sh scripts/compare_excel.py
+        run: chmod +x scripts/*.sh scripts/compare_excel.py
 
-      - name: Run PyPI vs GitHub comparison test
+      - name: Run PyPI vs GitHub comparison tests
         env:
           RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}
           WORK_DIR: ${{ github.workspace }}/.work
@@ -54,10 +54,7 @@ jobs:
         with:
           name: fosslight-compare-${{ github.run_id }}
           path: |
-            results/${{ github.run_id }}/FOSSLight-Report_pypi.xlsx
-            results/${{ github.run_id }}/FOSSLight-Report_github.xlsx
-            results/${{ github.run_id }}/excel_diff.txt
-            results/${{ github.run_id }}/excel_diff.json
-            results/${{ github.run_id }}/fosslight_compare/
+            results/${{ github.run_id }}/scanner/
+            results/${{ github.run_id }}/yocto/
           if-no-files-found: warn
           retention-days: 30

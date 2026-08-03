@@ -2,6 +2,9 @@
 
 .work/
 results/
+test_files/
+test_result_pypi/
+test_result_github/
 __pycache__/
 *.pyc
 .venv/
