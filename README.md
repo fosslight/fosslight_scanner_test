@@ -11,10 +11,16 @@ FOSSLight Scanner 계열 패키지의 **PyPI 배포본**과 **GitHub 최신 소�
 |------|------|
 | **목적** | PyPI 설치본 vs GitHub 설치본의 스캔 결과 회귀(regression) 감지 |
 | **대상 도구** | `fosslight_scanner`, `fosslight_yocto` (및 관련 util/source/binary 등) |
-| **실행 주기** | 매일 오전 9시, 11시, 오후 4시 (KST) — GitHub Actions |
+| **실행 주기** | 매일 — GitHub Actions (비교: 09:00/11:00/16:00 KST, scanner build: 00:30 KST) |
 | **결과 확인** | Actions Job Summary / Artifact (`excel_diff` 표, 양쪽 Excel) |
 
 ### 포함 테스트
+
+| Test | 내용 |
+|------|------|
+| **fosslight_scanner 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
+| **fosslight_yocto 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
+| **fosslight_scanner daily build** | GitHub `main` checkout → example 스캔 + `tox -e test_run` (Python 3.10/3.12/3.14) |
 
 | Test | PyPI 설치 | GitHub 설치 | 실행 명령 |
 |------|-----------|-------------|-----------|
@@ -96,18 +102,17 @@ pip install fosslight_yocto     # yocto 테스트
 
 테스트별로 **별도 workflow**로 실행됩니다.
 
-| Workflow | 파일 | 스크립트 |
-|----------|------|----------|
+| Workflow | 파일 | 스크립트 / 내용 |
+|----------|------|-----------------|
 | **Daily fosslight_scanner Test** | [`.github/workflows/daily_scanner_test.yml`](.github/workflows/daily_scanner_test.yml) | `scripts/run_scanner_test.sh` |
 | **Daily fosslight_yocto Test** | [`.github/workflows/daily_yocto_test.yml`](.github/workflows/daily_yocto_test.yml) | `scripts/run_yocto_test.sh` |
+| **Daily fosslight_scanner Build** | [`.github/workflows/daily_scanner_build.yml`](.github/workflows/daily_scanner_build.yml) | `fosslight/fosslight_scanner` main checkout → example 스캔 + tox |
 
-| 시각 (KST) | cron |
-|------------|------|
-| 09:00 | `0 9 * * *` |
-| 11:00 | `0 11 * * *` |
-| 16:00 | `0 16 * * *` |
+| 시각 (KST) | cron | 대상 |
+|------------|------|------|
+| 09:00 / 11:00 / 16:00 | `0 9,11,16 * * *` (`Asia/Seoul`) | scanner / yocto 비교 |
+| 00:30 | `30 15 * * *` (UTC) | scanner daily build |
 
-타임존: `Asia/Seoul`  
 수동 실행: Actions 탭에서 각 workflow의 **Run workflow** 로 개별 실행할 수 있습니다.
 
 ## 로컬 실행
@@ -143,8 +148,9 @@ python3 scripts/compare_excel.py path/to/pypi.xlsx path/to/github.xlsx --md diff
 ```text
 fosslight_scanner_test/
 ├── .github/workflows/
-│   ├── daily_scanner_test.yml    # fosslight_scanner CI
-│   └── daily_yocto_test.yml      # fosslight_yocto CI
+│   ├── daily_scanner_test.yml    # fosslight_scanner PyPI vs GitHub 비교
+│   ├── daily_yocto_test.yml      # fosslight_yocto PyPI vs GitHub 비교
+│   └── daily_scanner_build.yml   # fosslight_scanner main daily build + tox
 ├── docs/
 ├── scripts/
 │   ├── common.sh

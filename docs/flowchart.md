@@ -6,12 +6,13 @@
 
 ```mermaid
 flowchart TD
-    Start([시작<br/>Schedule 09:00 / 11:00 / 16:00 KST<br/>또는 workflow_dispatch]) --> Split
+    Start([시작<br/>비교: 09:00/11:00/16:00 KST<br/>build: 00:30 KST<br/>또는 workflow_dispatch]) --> Split
 
     Split[별도 GitHub Actions workflow]
 
     Split --> T1
     Split --> T2
+    Split --> T3
 
     subgraph T1["Workflow: Daily fosslight_scanner Test"]
         direction TB
@@ -44,19 +45,31 @@ flowchart TD
         YR -->|있음| YFail([❌ yocto Failure])
     end
 
+    subgraph T3["Workflow: Daily fosslight_scanner Build"]
+        direction TB
+        B1["Checkout fosslight/fosslight_scanner main"]
+        B2["pip install . + tox"]
+        B3["fosslight_scanner -p LGE-OSS/example"]
+        B4["tox -e test_run<br/>Python 3.10 / 3.12 / 3.14"]
+        B1 --> B2 --> B3 --> B4
+        B4 --> BPass([✅ build Success])
+    end
+
     style Start fill:#e8f4fc,stroke:#4a90c8
     style SPass fill:#e6f6e6,stroke:#3a9a3a
     style YPass fill:#e6f6e6,stroke:#3a9a3a
+    style BPass fill:#e6f6e6,stroke:#3a9a3a
     style SFail fill:#fde8e8,stroke:#c84a4a
     style YFail fill:#fde8e8,stroke:#c84a4a
     style T1 fill:#f7f9fc,stroke:#8aa0b8
     style T2 fill:#f7f9fc,stroke:#8aa0b8
+    style T3 fill:#f7f9fc,stroke:#8aa0b8
 ```
 
 > **판정 기준**
 > - **차이 없음** → 해당 workflow Success
 > - **차이 있음** → 해당 workflow Failure + 시트/셀 표 출력
-> - scanner / yocto workflow는 **독립** 실행·판정
+> - scanner / yocto / scanner-build workflow는 **독립** 실행·판정
 
 ## Detail — fosslight_yocto
 
@@ -117,5 +130,6 @@ flowchart LR
 | [`scripts/run_yocto_test.sh`](../scripts/run_yocto_test.sh) | fosslight_yocto 비교 |
 | [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | 로컬에서 둘 다 실행(선택) |
 | [`scripts/common.sh`](../scripts/common.sh) | 공통 헬퍼 |
-| [`.github/workflows/daily_scanner_test.yml`](../.github/workflows/daily_scanner_test.yml) | scanner CI |
-| [`.github/workflows/daily_yocto_test.yml`](../.github/workflows/daily_yocto_test.yml) | yocto CI |
+| [`.github/workflows/daily_scanner_test.yml`](../.github/workflows/daily_scanner_test.yml) | scanner 비교 CI |
+| [`.github/workflows/daily_yocto_test.yml`](../.github/workflows/daily_yocto_test.yml) | yocto 비교 CI |
+| [`.github/workflows/daily_scanner_build.yml`](../.github/workflows/daily_scanner_build.yml) | scanner main daily build + tox |
