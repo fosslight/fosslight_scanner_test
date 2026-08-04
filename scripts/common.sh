@@ -108,7 +108,29 @@ compare_excels() {
         cat "${diff_txt}"
       fi
       echo ""
-    } >> "${GITHUB_STEP_SUMMARY}"
+    } | tee "${result_dir}/job_summary.md" >> "${GITHUB_STEP_SUMMARY}"
+  else
+    {
+      if [[ "${diff_rc}" -eq 0 ]]; then
+        echo "## ✅ ${label}: Success — no Excel sheet/cell differences"
+      else
+        echo "## ❌ ${label}: Failure — Excel sheet/cell differences found"
+      fi
+      echo ""
+      echo "- PyPI: \`$(basename "${pypi_excel}")\`"
+      echo "- GitHub: \`$(basename "${github_excel}")\`"
+      echo "- Compare exit code: \`${diff_rc}\` (0=동일/Success, 1=차이/Failure)"
+      echo "- Excluded sheet: \`Scanner Info\`"
+      echo ""
+      echo "### Diff table (per sheet / cell)"
+      echo ""
+      if [[ -f "${diff_md}" ]]; then
+        cat "${diff_md}"
+      else
+        cat "${diff_txt}"
+      fi
+      echo ""
+    } > "${result_dir}/job_summary.md"
   fi
 
   if [[ "${diff_rc}" -ne 0 ]]; then

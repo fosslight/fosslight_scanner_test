@@ -63,4 +63,5 @@ jobs:
         uses: ./.github/actions/notify-teams-failure
         with:
           webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          detail: "PyPI vs GitHub Excel comparison failed."
+          detail: "PyPI vs GitHub (fosslight_yocto) Excel comparison failed."
+          summary_file: ${{ github.workspace }}/results/${{ github.run_id }}/yocto/job_summary.md

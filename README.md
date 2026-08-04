@@ -117,7 +117,8 @@ pip install fosslight_yocto     # yocto 테스트
 
 ### 실패 알림 (Microsoft Teams)
 
-workflow가 **Failure**이면 Teams 채널로 Adaptive Card 알림을 보냅니다.
+workflow가 **Failure**이면 Teams 채널로 Adaptive Card 알림을 보냅니다.  
+scanner / yocto 비교 실패 시 **Job Summary**(diff 표 포함)도 메시지에 첨부합니다. (길면 truncate)
 
 1. Teams 채널 → `…` → **워크플로** → 템플릿 **「웹후크 요청이 수신되면 채널에 게시」** (또는 **「채널에 웹후크 경고 보내기」**) 생성
 2. 발급된 HTTP URL을 repository secret `TEAMS_WEBHOOK_URL` 에 등록  

@@ -4,6 +4,7 @@ description: >
   Post an Adaptive Card to a Microsoft Teams Workflow webhook
   (템플릿: 웹후크 요청이 수신되면 채널에 게시).
   Skips quietly when webhook_url is empty.
+  Optionally includes a Job Summary markdown file (truncated if large).
 
 inputs:
   webhook_url:
@@ -14,6 +15,14 @@ inputs:
     description: Optional extra detail line (e.g. job name)
     required: false
     default: ""
+  summary_file:
+    description: Optional path to Job Summary markdown (e.g. results/.../job_summary.md)
+    required: false
+    default: ""
+  max_summary_chars:
+    description: Max characters of summary body to include (Teams payload size limit)
+    required: false
+    default: "6000"
 
 runs:
   using: composite
@@ -23,7 +32,10 @@ runs:
       env:
         TEAMS_WEBHOOK_URL: ${{ inputs.webhook_url }}
         DETAIL: ${{ inputs.detail }}
+        SUMMARY_FILE: ${{ inputs.summary_file }}
+        MAX_SUMMARY_CHARS: ${{ inputs.max_summary_chars }}
         WORKFLOW_NAME: ${{ github.workflow }}
+        JOB_NAME: ${{ github.job }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         REPO: ${{ github.repository }}
         REF: ${{ github.ref_name }}
@@ -38,15 +50,31 @@ runs:
 
         TITLE="❌ ${WORKFLOW_NAME} failed"
         DETAIL_TEXT="${DETAIL:-}"
+        SUMMARY_TEXT=""
+
+        if [[ -n "${SUMMARY_FILE}" && -f "${SUMMARY_FILE}" ]]; then
+          SUMMARY_TEXT="$(cat "${SUMMARY_FILE}")"
+        elif [[ -n "${SUMMARY_FILE}" ]]; then
+          SUMMARY_TEXT="(summary file not found: ${SUMMARY_FILE})"
+        fi
+
+        max_chars="${MAX_SUMMARY_CHARS:-6000}"
+        if [[ -n "${SUMMARY_TEXT}" && "${#SUMMARY_TEXT}" -gt "${max_chars}" ]]; then
+          SUMMARY_TEXT="${SUMMARY_TEXT:0:${max_chars}}
+
+… (truncated; open View run → Summary for the full result)"
+        fi
 
         payload="$(jq -n \
           --arg title "${TITLE}" \
+          --arg job "${JOB_NAME}" \
           --arg repo "${REPO}" \
           --arg ref "${REF}" \
           --arg actor "${ACTOR}" \
           --arg event "${EVENT_NAME}" \
           --arg url "${RUN_URL}" \
           --arg detail "${DETAIL_TEXT}" \
+          --arg summary "${SUMMARY_TEXT}" \
           '{
             type: "message",
             attachments: [{
@@ -69,6 +97,7 @@ runs:
                     {
                       type: "FactSet",
                       facts: [
+                        {title: "Job", value: $job},
                         {title: "Repository", value: $repo},
                         {title: "Ref", value: $ref},
                         {title: "Event", value: $event},
@@ -78,6 +107,23 @@ runs:
                   ]
                   + (if ($detail | length) > 0 then
                       [{type: "TextBlock", text: $detail, wrap: true}]
+                    else [] end)
+                  + (if ($summary | length) > 0 then
+                      [
+                        {
+                          type: "TextBlock",
+                          weight: "Bolder",
+                          text: "Job Summary",
+                          wrap: true,
+                          separator: true
+                        },
+                        {
+                          type: "TextBlock",
+                          text: $summary,
+                          wrap: true,
+                          fontType: "Monospace"
+                        }
+                      ]
                     else [] end)
                 ),
                 actions: [{
