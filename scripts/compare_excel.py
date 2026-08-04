@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Compare two FOSSLight Report Excel files and print differences."""
+"""Compare two FOSSLight Report Excel files sheet-by-sheet (cell-level).
+
+The 'Scanner Info' cover sheet is excluded from comparison.
+"""
 
 from __future__ import annotations
 
@@ -25,13 +28,8 @@ LIST_COLUMNS = {
     "depends on",
 }
 
-# Scanner Info keys that always differ between independent runs.
-IGNORE_SCANNER_INFO_KEYS = {
-    "running time",
-    "analyzed path",
-}
-
 COVER_SHEET_NAME = "Scanner Info"
+IGNORE_SHEETS = {COVER_SHEET_NAME.lower()}
 
 # Key columns used to align rows within a sheet (first match wins).
 KEY_COLUMNS = (
@@ -93,47 +91,10 @@ def _sheet_rows(ws) -> tuple[dict[str, int], list[tuple[Any, ...]]]:
     return headers, data
 
 
-def _scanner_info_map(ws) -> dict[str, str]:
-    """Parse Scanner Info sheet as key(A)/value(B) pairs."""
-    mapping: dict[str, str] = {}
-    for row in ws.iter_rows(values_only=True):
-        if not row:
-            continue
-        key = _norm(row[0] if len(row) > 0 else "")
-        if not key or key.lower() == "about the scanner":
-            continue
-        value = _norm(row[1] if len(row) > 1 else "")
-        mapping[key] = value
-    return mapping
-
-
-def _compare_scanner_info(sheet_name: str, left_ws, right_ws) -> list[dict[str, Any]]:
-    diffs: list[dict[str, Any]] = []
-    left = _scanner_info_map(left_ws)
-    right = _scanner_info_map(right_ws)
-    keys = sorted(set(left) | set(right), key=str.lower)
-    for key in keys:
-        if key.lower() in IGNORE_SCANNER_INFO_KEYS:
-            continue
-        lv = left.get(key, "")
-        rv = right.get(key, "")
-        if lv != rv:
-            diffs.append(
-                {
-                    "sheet": sheet_name,
-                    "type": "scanner_info_changed",
-                    "key": key,
-                    "pypi": lv,
-                    "github": rv,
-                }
-            )
-    return diffs
-
-
 def _compare_sheet(sheet_name: str, left_ws, right_ws) -> list[dict[str, Any]]:
     diffs: list[dict[str, Any]] = []
-    if sheet_name == COVER_SHEET_NAME:
-        return _compare_scanner_info(sheet_name, left_ws, right_ws)
+    if sheet_name.lower() in IGNORE_SHEETS:
+        return diffs
 
     left_headers, left_rows = _sheet_rows(left_ws)
     right_headers, right_rows = _sheet_rows(right_ws)
@@ -259,8 +220,8 @@ def compare_excels(pypi_path: Path, github_path: Path) -> list[dict[str, Any]]:
     right = load_workbook(github_path, data_only=True)
 
     diffs: list[dict[str, Any]] = []
-    left_sheets = set(left.sheetnames)
-    right_sheets = set(right.sheetnames)
+    left_sheets = {s for s in left.sheetnames if s.lower() not in IGNORE_SHEETS}
+    right_sheets = {s for s in right.sheetnames if s.lower() not in IGNORE_SHEETS}
 
     for name in sorted(left_sheets - right_sheets):
         diffs.append({"sheet": name, "type": "sheet_only_in_pypi"})
@@ -300,17 +261,6 @@ def _flatten_diff_rows(diffs: list[dict[str, Any]]) -> list[dict[str, str]]:
                         "github": str(change.get("github", "")),
                     }
                 )
-        elif dtype == "scanner_info_changed":
-            rows.append(
-                {
-                    "sheet": sheet,
-                    "type": dtype,
-                    "key": key,
-                    "column": key,
-                    "pypi": str(diff.get("pypi", "")),
-                    "github": str(diff.get("github", "")),
-                }
-            )
         elif dtype in ("row_only_in_pypi", "row_only_in_github"):
             side = "pypi" if dtype == "row_only_in_pypi" else "github"
             detail = json.dumps(diff.get(side), ensure_ascii=False)

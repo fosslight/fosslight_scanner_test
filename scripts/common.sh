@@ -63,76 +63,63 @@ PY
 
 compare_excels() {
   # Args: root_dir result_dir label pypi_excel github_excel
-  # Compare with fosslight-compare logic and print BOM result as a Markdown table.
+  # Sheet-by-sheet cell comparison (Scanner Info excluded). Print Markdown table.
   local root_dir="$1"
   local result_dir="$2"
   local label="$3"
   local pypi_excel="$4"
   local github_excel="$5"
 
-  local compare_json="${result_dir}/fosslight_compare.json"
-  local compare_md="${result_dir}/fosslight_compare.md"
-  local compare_txt="${result_dir}/fosslight_compare.txt"
+  local diff_json="${result_dir}/excel_diff.json"
+  local diff_md="${result_dir}/excel_diff.md"
+  local diff_txt="${result_dir}/excel_diff.txt"
   local diff_rc=0
 
   mkdir -p "${result_dir}"
 
-  # Optional: also produce official CLI artifacts when fosslight is available
-  if command -v fosslight >/dev/null 2>&1; then
-    log "[${label}] Running fosslight compare CLI (artifact)"
-    local compare_out="${result_dir}/fosslight_compare_cli"
-    mkdir -p "${compare_out}"
-    set +e
-    fosslight compare \
-      -p "${pypi_excel}" "${github_excel}" \
-      -o "${compare_out}" \
-      -f excel json \
-      -t
-    set -e
-  fi
-
-  log "[${label}] Formatting fosslight compare BOM result as table"
+  log "[${label}] Running sheet/cell-level Excel comparison (excluding Scanner Info)"
   set +e
-  python "${root_dir}/scripts/run_fosslight_compare.py" \
+  python "${root_dir}/scripts/compare_excel.py" \
     "${pypi_excel}" \
     "${github_excel}" \
-    -o "${compare_json}" \
-    --md "${compare_md}" | tee "${compare_txt}"
+    -o "${diff_json}" \
+    --md "${diff_md}" | tee "${diff_txt}"
   diff_rc=$?
   set -e
 
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     {
       if [[ "${diff_rc}" -eq 0 ]]; then
-        echo "## ✅ ${label}: Success — fosslight compare: no BOM differences"
+        echo "## ✅ ${label}: Success — no Excel sheet/cell differences"
       else
-        echo "## ❌ ${label}: Failure — fosslight compare found BOM differences"
+        echo "## ❌ ${label}: Failure — Excel sheet/cell differences found"
       fi
       echo ""
-      echo "- PyPI (before): \`$(basename "${pypi_excel}")\`"
-      echo "- GitHub (after): \`$(basename "${github_excel}")\`"
+      echo "- PyPI: \`$(basename "${pypi_excel}")\`"
+      echo "- GitHub: \`$(basename "${github_excel}")\`"
       echo "- Compare exit code: \`${diff_rc}\` (0=동일/Success, 1=차이/Failure)"
+      echo "- Excluded sheet: \`Scanner Info\`"
       echo ""
-      echo "### fosslight compare result"
+      echo "### Diff table (per sheet / cell)"
       echo ""
-      if [[ -f "${compare_md}" ]]; then
-        cat "${compare_md}"
+      if [[ -f "${diff_md}" ]]; then
+        cat "${diff_md}"
       else
-        cat "${compare_txt}"
+        cat "${diff_txt}"
       fi
       echo ""
     } >> "${GITHUB_STEP_SUMMARY}"
   fi
 
   if [[ "${diff_rc}" -ne 0 ]]; then
-    log "[${label}] FAILURE: fosslight compare found differences. Review: ${compare_txt}"
-    log "---- ${label} compare begin ----"
-    cat "${compare_txt}" || true
-    log "---- ${label} compare end ----"
+    log "[${label}] FAILURE: Excel differences detected. Review: ${diff_txt}"
+    log "---- ${label} diff begin ----"
+    cat "${diff_txt}" || true
+    log "---- ${label} diff end ----"
     return 1
   fi
 
-  log "[${label}] SUCCESS: fosslight compare — no BOM differences."
+  log "[${label}] SUCCESS: no Excel sheet/cell differences."
   return 0
 }
 

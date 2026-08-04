@@ -91,7 +91,7 @@ run_yocto "${GIT_OUT}" "github"
 cp -f "${GIT_OUT}/fosslight_report_yocto.xlsx" "${RESULT_DIR}/fosslight_report_yocto_github.xlsx"
 deactivate
 
-# --- Compare (openpyxl via git venv) ---
+# --- Compare (sheet/cell-level Excel, excluding Scanner Info) ---
 # shellcheck disable=SC1090
 source "${GIT_VENV}/bin/activate"
 set +e

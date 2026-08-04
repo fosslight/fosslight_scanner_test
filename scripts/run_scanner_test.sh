@@ -61,7 +61,7 @@ GIT_EXCEL="$(find_excel "${GIT_OUT}" 'fosslight_report*.xlsx' 'FOSSLight-Report*
 log "GitHub excel: ${GIT_EXCEL}"
 cp -f "${GIT_EXCEL}" "${SCANNER_RESULT_DIR}/fosslight_report_github.xlsx"
 
-# --- Compare (fosslight compare BOM table) ---
+# --- Compare (sheet/cell-level Excel, excluding Scanner Info) ---
 set +e
 compare_excels \
   "${ROOT_DIR}" \

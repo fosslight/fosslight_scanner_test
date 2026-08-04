@@ -18,7 +18,7 @@ flowchart TD
         S1["PyPI: pip install fosslight_scanner"]
         S2["GitHub: scanner + util/source/…"]
         S3["fosslight -w LGE-OSS/example"]
-        S4["fosslight compare BOM 표"]
+        S4["시트/셀 Excel 비교<br/>Scanner Info 제외"]
         S1 --> S3
         S2 --> S3
         S3 --> S4
@@ -33,7 +33,7 @@ flowchart TD
         Y1["PyPI: pip install fosslight_yocto"]
         Y2["GitHub: util/source/dependency/binary<br/>scanner/android/yocto (scanner와 동일)"]
         Y3["fosslight_yocto -ip -i -b -p -y -o"]
-        Y4["fosslight compare BOM 표"]
+        Y4["시트/셀 Excel 비교<br/>Scanner Info 제외"]
         Y0 --> Y1
         Y0 --> Y2
         Y1 --> Y3
@@ -55,7 +55,7 @@ flowchart TD
 
 > **판정 기준**
 > - **차이 없음** → 해당 workflow Success
-> - **차이 있음** → 해당 workflow Failure + fosslight compare 표 출력
+> - **차이 있음** → 해당 workflow Failure + 시트/셀 표 출력
 > - scanner / yocto workflow는 **독립** 실행·판정
 
 ## Detail — fosslight_yocto
@@ -79,23 +79,25 @@ flowchart TD
         G1 --> G2 --> G3
     end
 
-    P3 --> Cmp[fosslight compare BOM 표]
+    P3 --> Cmp[compare_excel.py<br/>시트/셀 비교]
     G3 --> Cmp
     Cmp --> Out{차이?}
     Out -->|없음| OK([✅ Success])
-    Out -->|있음| NG([❌ Failure + compare 표])
+    Out -->|있음| NG([❌ Failure + 표 출력])
 
     style OK fill:#e6f6e6,stroke:#3a9a3a
     style NG fill:#fde8e8,stroke:#c84a4a
 ```
 
-## Detail — 비교 판정 (fosslight compare)
+## Detail — 비교 판정 (시트/셀)
 
 ```mermaid
 flowchart LR
-    Excel[양쪽 FOSSLight Report Excel] --> Bom[BOM 추출<br/>OSS Name / Version / License]
-    Bom --> Cmp[compare_yaml<br/>add / delete / change]
-    Cmp --> Table["Markdown 표 출력<br/>Status / Before / After"]
+    Excel[양쪽 FOSSLight Report Excel] --> Filter["Scanner Info 제외"]
+    Filter --> Sheets[SRC / BIN / DEP 등 시트별]
+    Sheets --> Align[경로 / Package URL 기준 행 정렬]
+    Align --> Cell["셀 값 비교<br/>ID·TLSH 제외<br/>License·Depends On 정렬"]
+    Cell --> Table["Markdown 표 출력"]
     Table --> Out{차이?}
     Out -->|없음| OK["✅ Success<br/>exit 0"]
     Out -->|있음| NG["❌ Failure<br/>exit 1"]
@@ -104,13 +106,13 @@ flowchart LR
     style NG fill:#fde8e8,stroke:#c84a4a
 ```
 
-표 컬럼: `Status | Before OSS | Before License | After OSS | After License`
+표 컬럼: `# | Sheet | Type | Key | Column | PyPI | GitHub`
 
 ## Related files
 
 | Path | Role |
 |------|------|
-| [`scripts/run_fosslight_compare.py`](../scripts/run_fosslight_compare.py) | fosslight compare BOM → Markdown 표 |
+| [`scripts/compare_excel.py`](../scripts/compare_excel.py) | 시트/셀 단위 비교 → Markdown 표 |
 | [`scripts/run_scanner_test.sh`](../scripts/run_scanner_test.sh) | fosslight_scanner 비교 |
 | [`scripts/run_yocto_test.sh`](../scripts/run_yocto_test.sh) | fosslight_yocto 비교 |
 | [`scripts/run_daily_test.sh`](../scripts/run_daily_test.sh) | 로컬에서 둘 다 실행(선택) |
