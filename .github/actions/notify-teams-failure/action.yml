@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Notify Teams on failure
+description: >
+  Post an Adaptive Card to a Microsoft Teams Workflow webhook
+  (템플릿: 웹후크 요청이 수신되면 채널에 게시).
+  Skips quietly when webhook_url is empty.
+
+inputs:
+  webhook_url:
+    description: Teams Workflow HTTP POST URL (repository secret TEAMS_WEBHOOK_URL)
+    required: false
+    default: ""
+  detail:
+    description: Optional extra detail line (e.g. job name)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Post Adaptive Card to Teams
+      shell: bash
+      env:
+        TEAMS_WEBHOOK_URL: ${{ inputs.webhook_url }}
+        DETAIL: ${{ inputs.detail }}
+        WORKFLOW_NAME: ${{ github.workflow }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        REPO: ${{ github.repository }}
+        REF: ${{ github.ref_name }}
+        ACTOR: ${{ github.actor }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        set -euo pipefail
+        if [[ -z "${TEAMS_WEBHOOK_URL}" ]]; then
+          echo "TEAMS_WEBHOOK_URL is not set; skip Teams notification."
+          exit 0
+        fi
+
+        TITLE="❌ ${WORKFLOW_NAME} failed"
+        DETAIL_TEXT="${DETAIL:-}"
+
+        payload="$(jq -n \
+          --arg title "${TITLE}" \
+          --arg repo "${REPO}" \
+          --arg ref "${REF}" \
+          --arg actor "${ACTOR}" \
+          --arg event "${EVENT_NAME}" \
+          --arg url "${RUN_URL}" \
+          --arg detail "${DETAIL_TEXT}" \
+          '{
+            type: "message",
+            attachments: [{
+              contentType: "application/vnd.microsoft.card.adaptive",
+              contentUrl: null,
+              content: {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                type: "AdaptiveCard",
+                version: "1.4",
+                body: (
+                  [
+                    {
+                      type: "TextBlock",
+                      size: "Large",
+                      weight: "Bolder",
+                      color: "Attention",
+                      text: $title,
+                      wrap: true
+                    },
+                    {
+                      type: "FactSet",
+                      facts: [
+                        {title: "Repository", value: $repo},
+                        {title: "Ref", value: $ref},
+                        {title: "Event", value: $event},
+                        {title: "Actor", value: $actor}
+                      ]
+                    }
+                  ]
+                  + (if ($detail | length) > 0 then
+                      [{type: "TextBlock", text: $detail, wrap: true}]
+                    else [] end)
+                ),
+                actions: [{
+                  type: "Action.OpenUrl",
+                  title: "View run",
+                  url: $url
+                }]
+              }
+            }]
+          }')"
+
+        curl -sS -f -X POST \
+          -H "Content-Type: application/json" \
+          -d "${payload}" \
+          "${TEAMS_WEBHOOK_URL}"
+        echo "Teams notification sent."

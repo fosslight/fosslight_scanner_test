@@ -57,3 +57,10 @@ jobs:
           path: results/${{ github.run_id }}/scanner/
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Notify Teams on failure
+        if: failure()
+        uses: ./.github/actions/notify-teams-failure
+        with:
+          webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          detail: "PyPI vs GitHub Excel comparison failed."

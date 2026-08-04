@@ -115,6 +115,17 @@ pip install fosslight_yocto     # yocto 테스트
 
 수동 실행: Actions 탭에서 각 workflow의 **Run workflow** 로 개별 실행할 수 있습니다.
 
+### 실패 알림 (Microsoft Teams)
+
+workflow가 **Failure**이면 Teams 채널로 Adaptive Card 알림을 보냅니다.
+
+1. Teams 채널 → `…` → **워크플로** → 템플릿 **「웹후크 요청이 수신되면 채널에 게시」** (또는 **「채널에 웹후크 경고 보내기」**) 생성
+2. 발급된 HTTP URL을 repository secret `TEAMS_WEBHOOK_URL` 에 등록  
+   (Settings → Secrets and variables → Actions)
+3. secret이 비어 있으면 알림은 **건너뛰고** CI 판정에는 영향을 주지 않습니다
+
+알림 구현: [`.github/actions/notify-teams-failure`](.github/actions/notify-teams-failure)
+
 ## 로컬 실행
 
 Python 3.10+ 가 필요합니다.

@@ -63,3 +63,18 @@ jobs:
         working-directory: fosslight_scanner
         run: |
           tox -e test_run
+
+  notify-on-failure:
+    name: Notify Teams on failure
+    needs: build
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Notify Teams
+        uses: ./.github/actions/notify-teams-failure
+        with:
+          webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          detail: "fosslight_scanner main daily build/tox failed (one or more Python versions)."
