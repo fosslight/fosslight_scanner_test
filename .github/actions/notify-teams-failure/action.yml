@@ -60,9 +60,7 @@ runs:
 
         max_chars="${MAX_SUMMARY_CHARS:-6000}"
         if [[ -n "${SUMMARY_TEXT}" && "${#SUMMARY_TEXT}" -gt "${max_chars}" ]]; then
-          SUMMARY_TEXT="${SUMMARY_TEXT:0:${max_chars}}
-
-… (truncated; open View run → Summary for the full result)"
+          SUMMARY_TEXT="${SUMMARY_TEXT:0:${max_chars}}"$'\n\n'"… (truncated; open View run → Summary for the full result)"
         fi
 
         payload="$(jq -n \
