@@ -50,7 +50,7 @@ flowchart TD
         B1["Checkout fosslight/fosslight_scanner main"]
         B2["pip install . + tox"]
         B3["fosslight_scanner -p LGE-OSS/example"]
-        B4["tox -e test_run<br/>Python 3.10 / 3.12 / 3.14"]
+        B4["tox -e test_run<br/>Python 3.10–3.14"]
         B1 --> B2 --> B3 --> B4
         B4 --> BPass([✅ build Success])
     end

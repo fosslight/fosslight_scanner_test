@@ -20,7 +20,7 @@ FOSSLight Scanner 계열 패키지의 **PyPI 배포본**과 **GitHub 최신 소�
 |------|------|
 | **fosslight_scanner 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_yocto 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
-| **fosslight_scanner daily build** | GitHub `main` checkout → example 스캔 + `tox -e test_run` (Python 3.10/3.12/3.14) |
+| **fosslight_scanner daily build** | GitHub `main` checkout → example 스캔 + `tox -e test_run` (Python 3.10–3.14) |
 
 | Test | PyPI 설치 | GitHub 설치 | 실행 명령 |
 |------|-----------|-------------|-----------|
