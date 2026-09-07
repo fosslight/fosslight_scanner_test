@@ -37,6 +37,15 @@ git clone --depth 1 --branch "${DEP_REF}" "${DEP_REPO}" "${DEP_DIR}"
 cd "${DEP_DIR}"
 log "Checked out dependency at $(git rev-parse --short HEAD)"
 
+if command -v flutter >/dev/null 2>&1; then
+  log "Flutter pub get for fixtures"
+  flutter --version
+  (cd tests/test_pub && flutter pub get)
+  (cd tests/test_exclude && flutter pub get)
+else
+  log "WARNING: flutter not on PATH; pub tests may produce empty DEP sheets"
+fi
+
 log "Creating tox env run_ubuntu (install only; util may come from PyPI here)"
 tox run -e run_ubuntu --notest
 

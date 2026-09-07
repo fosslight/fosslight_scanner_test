@@ -6,7 +6,8 @@ Looks for ``fosslight_report_dep_*.xlsx`` and requires ``DEP_FL_Dependency``
 to have at least 2 non-empty rows (header + data).
 
 By default only result dirs that Ubuntu tox can populate are checked.
-Env-limited fixtures (cocoapods/pub/gradle2) are skipped unless --all.
+Env-limited fixtures (cocoapods/gradle2) are skipped unless --all.
+``pub`` is required when Flutter is installed in CI.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ REQUIRED_RESULT_DIRS = frozenset({
     "npm2",
     "nuget1",
     "nuget2",
+    "pub",
     "pypi",
 })
 
@@ -70,7 +72,7 @@ def main() -> int:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Check every fosslight_report_dep_*.xlsx (including cocoapods/pub/gradle2)",
+        help="Check every fosslight_report_dep_*.xlsx (including cocoapods/gradle2)",
     )
     args = parser.parse_args()
     root: Path = args.result_root

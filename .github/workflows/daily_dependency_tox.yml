@@ -36,6 +36,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Flutter (pub fixtures)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
