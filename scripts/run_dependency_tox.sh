@@ -46,6 +46,14 @@ else
   log "WARNING: flutter not on PATH; pub tests may produce empty DEP sheets"
 fi
 
+if command -v go >/dev/null 2>&1; then
+  log "Go mod download for fixtures"
+  go version
+  (cd tests/test_mod && go mod download)
+else
+  log "WARNING: go not on PATH; mod tests may produce empty DEP sheets"
+fi
+
 log "Creating tox env run_ubuntu (install only; util may come from PyPI here)"
 tox run -e run_ubuntu --notest
 
