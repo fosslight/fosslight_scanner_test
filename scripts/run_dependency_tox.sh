@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# Run fosslight_dependency tox (ubuntu) with fosslight_util from GitHub main (not PyPI).
+# Run fosslight_dependency tox with fosslight_util from GitHub main (not PyPI).
+#
+# Env:
+#   TOX_ENV          run_ubuntu | run_windows | run_macos  (default: run_ubuntu)
+#   ASSERT_PROFILE   ubuntu | windows | macos              (default: derived from TOX_ENV)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,14 +19,28 @@ KEEP_WORK="${KEEP_WORK:-0}"
 DEP_REPO="${DEP_REPO:-https://github.com/fosslight/fosslight_dependency_scanner.git}"
 DEP_REF="${DEP_REF:-main}"
 UTIL_GIT="${UTIL_GIT:-git+https://github.com/fosslight/fosslight_util.git@main}"
+TOX_ENV="${TOX_ENV:-run_ubuntu}"
+
+case "${TOX_ENV}" in
+  run_ubuntu) DEFAULT_PROFILE=ubuntu ;;
+  run_windows) DEFAULT_PROFILE=windows ;;
+  run_macos) DEFAULT_PROFILE=macos ;;
+  *)
+    echo "ERROR: unsupported TOX_ENV=${TOX_ENV} (use run_ubuntu|run_windows|run_macos)" >&2
+    exit 2
+    ;;
+esac
+ASSERT_PROFILE="${ASSERT_PROFILE:-${DEFAULT_PROFILE}}"
 
 DEP_DIR="${WORK_DIR}/fosslight_dependency_scanner"
-VENV_DIR="${WORK_DIR}/venv_dependency_tox"
+VENV_DIR="${WORK_DIR}/venv_dependency_tox_${TOX_ENV}"
+COCOAPODS_PROJECT="tests/test_cocoapods/cocoapods-tips/JWSCocoapodsTips"
 
 mkdir -p "${WORK_DIR}" "${RESULT_DIR}"
 log "Result directory: ${RESULT_DIR}"
 log "dependency: ${DEP_REPO}@${DEP_REF}"
 log "fosslight_util: ${UTIL_GIT}"
+log "tox env: ${TOX_ENV} (assert profile: ${ASSERT_PROFILE})"
 
 log "Creating virtualenv for tox host"
 create_venv "${VENV_DIR}" "${PYTHON_BIN}"
@@ -54,31 +72,54 @@ else
   log "WARNING: go not on PATH; mod tests may produce empty DEP sheets"
 fi
 
-log "Creating tox env run_ubuntu (install only; util may come from PyPI here)"
-tox run -e run_ubuntu --notest
+if [[ "${TOX_ENV}" == "run_macos" ]]; then
+  if ! command -v pod >/dev/null 2>&1; then
+    echo "ERROR: pod not found; CocoaPods is required for run_macos" >&2
+    exit 2
+  fi
+  log "pod install for CocoaPods fixture"
+  (cd "${COCOAPODS_PROJECT}" && pod install --clean-install)
+fi
 
-TOX_ENV_DIR="$(python - <<'PY'
+log "Creating tox env ${TOX_ENV} (install only; util may come from PyPI here)"
+tox run -e "${TOX_ENV}" --notest
+
+TOX_ENV_DIR="$(TOX_ENV_NAME="${TOX_ENV}" python - <<'PY'
+import os
 from pathlib import Path
+name = os.environ["TOX_ENV_NAME"]
 candidates = [
-    Path("tests") / "run_ubuntu",
-    Path("tests") / ".tox" / "run_ubuntu",
-    Path(".tox") / "run_ubuntu",
+    Path("tests") / name,
+    Path("tests") / ".tox" / name,
+    Path(".tox") / name,
 ]
 for path in candidates:
-    if (path / "bin" / "python").is_file():
+    # Unix and Windows venv layouts
+    if (path / "bin" / "python").is_file() or (path / "Scripts" / "python.exe").is_file():
         print(path.resolve())
         break
 else:
-    raise SystemExit("tox run_ubuntu env not found under tests/run_ubuntu, tests/.tox, or .tox/")
+    raise SystemExit(f"tox env {name} not found under tests/{name}, tests/.tox, or .tox/")
 PY
 )"
 log "Tox env: ${TOX_ENV_DIR}"
 
+if [[ -x "${TOX_ENV_DIR}/bin/pip" ]]; then
+  TOX_PIP="${TOX_ENV_DIR}/bin/pip"
+  TOX_PYTHON="${TOX_ENV_DIR}/bin/python"
+elif [[ -f "${TOX_ENV_DIR}/Scripts/pip.exe" ]]; then
+  TOX_PIP="${TOX_ENV_DIR}/Scripts/pip.exe"
+  TOX_PYTHON="${TOX_ENV_DIR}/Scripts/python.exe"
+else
+  echo "ERROR: pip/python not found in ${TOX_ENV_DIR}" >&2
+  exit 2
+fi
+
 log "Force-installing fosslight_util from GitHub main into tox env"
-"${TOX_ENV_DIR}/bin/pip" install --upgrade --force-reinstall "${UTIL_GIT}"
+"${TOX_PIP}" install --upgrade --force-reinstall "${UTIL_GIT}"
 
 log "Installed package versions (tox env)"
-"${TOX_ENV_DIR}/bin/python" - <<'PY'
+"${TOX_PYTHON}" - <<'PY'
 from importlib.metadata import PackageNotFoundError, version
 for pkg in ("fosslight_dependency", "fosslight_util"):
     try:
@@ -89,28 +130,33 @@ import fosslight_util
 print(f"  fosslight_util file: {fosslight_util.__file__}")
 PY
 
-log "Running tox run_ubuntu with --skip-pkg-install (keep util from git)"
+LOG_NAME="tox_${TOX_ENV}.log"
+log "Running tox ${TOX_ENV} with --skip-pkg-install (keep util from git)"
 set +e
-tox run -e run_ubuntu --skip-pkg-install 2>&1 | tee "${RESULT_DIR}/tox_ubuntu.log"
+tox run -e "${TOX_ENV}" --skip-pkg-install 2>&1 | tee "${RESULT_DIR}/${LOG_NAME}"
 TOX_RC=${PIPESTATUS[0]}
 set -e
 
-log "Asserting DEP_FL_Dependency sheets under tests/result have data rows"
+log "Asserting DEP_FL_Dependency sheets under tests/result (profile=${ASSERT_PROFILE})"
 set +e
-python "${ROOT_DIR}/scripts/assert_dep_results.py" "${DEP_DIR}/tests/result" 2>&1 | tee "${RESULT_DIR}/assert_dep_results.log"
+python "${ROOT_DIR}/scripts/assert_dep_results.py" \
+  --profile "${ASSERT_PROFILE}" \
+  "${DEP_DIR}/tests/result" 2>&1 | tee "${RESULT_DIR}/assert_dep_results.log"
 ASSERT_RC=${PIPESTATUS[0]}
 set -e
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     if [[ "${TOX_RC}" -eq 0 && "${ASSERT_RC}" -eq 0 ]]; then
-      echo "## ✅ fosslight_dependency tox (util@git main): Success"
+      echo "## ✅ fosslight_dependency tox (${TOX_ENV}, util@git main): Success"
     else
-      echo "## ❌ fosslight_dependency tox (util@git main): Failure"
+      echo "## ❌ fosslight_dependency tox (${TOX_ENV}, util@git main): Failure"
     fi
     echo ""
     echo "- dependency: \`${DEP_REPO}@${DEP_REF}\` (\`$(git rev-parse --short HEAD)\`)"
     echo "- fosslight_util: \`${UTIL_GIT}\`"
+    echo "- tox env: \`${TOX_ENV}\`"
+    echo "- assert profile: \`${ASSERT_PROFILE}\`"
     echo "- tox run exit: \`${TOX_RC}\`"
     echo "- DEP sheet assert exit: \`${ASSERT_RC}\`"
     echo ""
@@ -121,6 +167,8 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   } | tee "${RESULT_DIR}/job_summary.md" >> "${GITHUB_STEP_SUMMARY}"
 else
   {
+    echo "tox_env=${TOX_ENV}"
+    echo "assert_profile=${ASSERT_PROFILE}"
     echo "tox_rc=${TOX_RC}"
     echo "assert_rc=${ASSERT_RC}"
   } > "${RESULT_DIR}/job_summary.md"
@@ -140,5 +188,5 @@ if [[ "${ASSERT_RC}" -ne 0 ]]; then
   exit "${ASSERT_RC}"
 fi
 
-log "SUCCESS: dependency tox + DEP sheet assert passed"
+log "SUCCESS: dependency tox (${TOX_ENV}) + DEP sheet assert passed"
 exit 0

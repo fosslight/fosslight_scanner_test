@@ -5,9 +5,7 @@
 Looks for ``fosslight_report_dep_*.xlsx`` and requires ``DEP_FL_Dependency``
 to have at least 2 non-empty rows (header + data).
 
-By default only result dirs that Ubuntu tox can populate are checked.
-Env-limited fixtures (cocoapods/gradle2) are skipped unless --all.
-``pub`` is required when Flutter is installed in CI.
+Use ``--profile`` to select which result dirs must exist for each OS tox env.
 """
 
 from __future__ import annotations
@@ -21,24 +19,43 @@ from openpyxl import load_workbook
 DEP_SHEET_NAME = "DEP_FL_Dependency"
 MIN_ROWS = 2
 
-# Result folder names under tests/result that must have DEP data on Ubuntu CI.
-REQUIRED_RESULT_DIRS = frozenset({
-    "android",
-    "cargo",
-    "exclude",
-    "gradle",
-    "helm",
-    "maven1",
-    "maven2",
-    "mod",
-    "multi_pypi_npm",
-    "npm1",
-    "npm2",
-    "nuget1",
-    "nuget2",
-    "pub",
-    "pypi",
-})
+REQUIRED_BY_PROFILE = {
+    "ubuntu": frozenset({
+        "android",
+        "cargo",
+        "exclude",
+        "gradle",
+        "helm",
+        "maven1",
+        "maven2",
+        "mod",
+        "multi_pypi_npm",
+        "npm1",
+        "npm2",
+        "nuget1",
+        "nuget2",
+        "pub",
+        "pypi",
+    }),
+    # Windows pytest markers cover a subset of managers (no helm/npm/cocoapods).
+    "windows": frozenset({
+        "android",
+        "cargo",
+        "exclude",
+        "gradle",
+        "maven2",
+        "mod",
+        "nuget1",
+        "nuget2",
+        "pub",
+        "pypi",
+    }),
+    # macOS pytest -m macos currently covers CocoaPods + pub.
+    "macos": frozenset({
+        "cocoapods",
+        "pub",
+    }),
+}
 
 
 def _row_count(sheet) -> int:
@@ -70,12 +87,19 @@ def main() -> int:
         help="Root directory that contains per-manager result folders (e.g. tests/result)",
     )
     parser.add_argument(
+        "--profile",
+        choices=sorted(REQUIRED_BY_PROFILE),
+        default="ubuntu",
+        help="Which tox OS profile's required result dirs to enforce (default: ubuntu)",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
-        help="Check every fosslight_report_dep_*.xlsx (including cocoapods/gradle2)",
+        help="Check every fosslight_report_dep_*.xlsx (ignore --profile allowlist)",
     )
     args = parser.parse_args()
     root: Path = args.result_root
+    required_dirs = REQUIRED_BY_PROFILE[args.profile]
 
     if not root.is_dir():
         print(f"ERROR: result root not found: {root}", file=sys.stderr)
@@ -88,6 +112,7 @@ def main() -> int:
 
     if not args.all:
         filtered = []
+        found_tops: set[str] = set()
         for report in reports:
             try:
                 rel = report.relative_to(root)
@@ -95,11 +120,19 @@ def main() -> int:
                 filtered.append(report)
                 continue
             top = rel.parts[0] if rel.parts else ""
-            if top in REQUIRED_RESULT_DIRS:
+            if top in required_dirs:
                 filtered.append(report)
+                found_tops.add(top)
             else:
-                print(f"[SKIP] {rel}: not in required Ubuntu result dirs")
+                print(f"[SKIP] {rel}: not in required {args.profile} result dirs")
         reports = filtered
+        missing = sorted(required_dirs - found_tops)
+        if missing:
+            print(
+                f"ERROR: missing required {args.profile} result dir(s): {', '.join(missing)}",
+                file=sys.stderr,
+            )
+            return 1
 
     if not reports:
         print(f"ERROR: no required fosslight_report_dep_*.xlsx under {root}", file=sys.stderr)
@@ -121,7 +154,10 @@ def main() -> int:
         print(f"ERROR: {failed}/{len(reports)} report(s) failed DEP sheet check", file=sys.stderr)
         return 1
 
-    print(f"SUCCESS: {len(reports)} report(s) have non-empty {DEP_SHEET_NAME}")
+    print(
+        f"SUCCESS: {len(reports)} report(s) have non-empty {DEP_SHEET_NAME} "
+        f"(profile={args.profile})"
+    )
     return 0
 
 

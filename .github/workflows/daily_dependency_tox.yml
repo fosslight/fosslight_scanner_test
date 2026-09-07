@@ -17,9 +17,22 @@ concurrency:
 
 jobs:
   dependency-tox:
-    name: dependency tox (util@git main)
-    runs-on: ubuntu-latest
+    name: dependency tox ${{ matrix.tox_env }} (util@git main)
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            tox_env: run_ubuntu
+            assert_profile: ubuntu
+          - os: windows-latest
+            tox_env: run_windows
+            assert_profile: windows
+          - os: macos-latest
+            tox_env: run_macos
+            assert_profile: macos
 
     steps:
       - name: Checkout
@@ -31,6 +44,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up Java (Gradle fixtures)
+        if: matrix.tox_env != 'run_macos'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -43,11 +57,13 @@ jobs:
           cache: true
 
       - name: Set up Go (mod fixtures)
+        if: matrix.tox_env != 'run_macos'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -57,27 +73,45 @@ jobs:
             libxslt-dev
           sudo npm install -g license-checker
 
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install libxml2 libxslt
+          npm install -g license-checker
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          npm install -g license-checker
+
       - name: Make scripts executable
+        shell: bash
         run: chmod +x scripts/*.sh scripts/*.py
 
       - name: Install openpyxl for DEP sheet assert
+        shell: bash
         run: python -m pip install --upgrade pip openpyxl
 
       - name: Run fosslight_dependency tox (util from git main)
+        shell: bash
         env:
-          RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox
-          WORK_DIR: ${{ github.workspace }}/.work
+          RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}
+          WORK_DIR: ${{ github.workspace }}/.work/${{ matrix.tox_env }}
           KEEP_WORK: "0"
           DEP_REF: main
           UTIL_GIT: git+https://github.com/fosslight/fosslight_util.git@main
+          TOX_ENV: ${{ matrix.tox_env }}
+          ASSERT_PROFILE: ${{ matrix.assert_profile }}
+          PYTHON_BIN: python
         run: ./scripts/run_dependency_tox.sh
 
       - name: Upload dependency tox artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fosslight-dependency-tox-${{ github.run_id }}
-          path: results/${{ github.run_id }}/dependency_tox/
+          name: fosslight-dependency-tox-${{ matrix.tox_env }}-${{ github.run_id }}
+          path: results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/
           if-no-files-found: warn
           retention-days: 30
 
@@ -86,5 +120,5 @@ jobs:
         uses: ./.github/actions/notify-teams-failure
         with:
           webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          detail: "fosslight_dependency tox failed (fosslight_util installed from GitHub main)."
-          summary_file: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/job_summary.md
+          detail: "fosslight_dependency ${{ matrix.tox_env }} failed (fosslight_util from GitHub main)."
+          summary_file: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/job_summary.md

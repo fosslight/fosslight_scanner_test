@@ -3,7 +3,7 @@
 FOSSLight Scanner 계열 패키지를 자동으로 검증하는 저장소입니다. 목적은 두 가지입니다.
 
 1. **PyPI vs GitHub Excel 비교** — 공개된 스캐너들이 PyPI 배포본과 GitHub `main` 개발 버전이 서로 다른 분석 결과를 내지 않는지 확인합니다. 동일 입력으로 스캔한 뒤, 생성된 Report Excel을 **시트별 셀 단위**로 비교합니다. (`Scanner Info` 시트는 제외)
-2. **fosslight_dependency tox** — dependency scanner의 `tox -e run_ubuntu`를 매일 돌리되, `fosslight_util`은 **PyPI가 아니라 GitHub `main`**에서 설치해 최신 util과의 호환을 검증합니다.
+2. **fosslight_dependency tox** — dependency scanner의 `tox -e run_ubuntu|run_windows|run_macos`를 매일 돌리되, `fosslight_util`은 **PyPI가 아니라 GitHub `main`**에서 설치해 최신 util과의 호환을 검증합니다.
 
 ## 이 Repository가 하는 일
 
@@ -12,7 +12,7 @@ FOSSLight Scanner 계열 패키지를 자동으로 검증하는 저장소입니�
 | **목적** | (1) PyPI 설치본 vs GitHub 설치본의 스캔 결과 회귀 감지<br>(2) dependency tox + util@git main 호환성 검증 |
 | **대상 도구** | `fosslight_scanner`, `fosslight_yocto`, `fosslight_dependency` (및 관련 util/source/binary 등) |
 | **실행 주기** | 매일 — GitHub Actions<br>· 비교: 09:00 / 11:00 / 16:00 KST<br>· scanner build: 00:30 KST<br>· **dependency tox: 01:00 KST** |
-| **결과 확인** | Actions Job Summary / Artifact<br>· 비교: `excel_diff` 표, 양쪽 Excel<br>· dependency tox: `tox_ubuntu.log`, `assert_dep_results.log`, `job_summary.md` |
+| **결과 확인** | Actions Job Summary / Artifact<br>· 비교: `excel_diff` 표, 양쪽 Excel<br>· dependency tox: OS별 `tox_run_*.log`, `assert_dep_results.log`, `job_summary.md` |
 
 ### 포함 테스트
 
@@ -21,13 +21,13 @@ FOSSLight Scanner 계열 패키지를 자동으로 검증하는 저장소입니�
 | **fosslight_scanner 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_yocto 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_scanner daily build** | GitHub `main` checkout → example 스캔 + `tox -e test_run` (Python 3.10–3.14) |
-| **fosslight_dependency tox** | dependency `main` checkout → `tox -e run_ubuntu` + `DEP_FL_Dependency` non-empty assert (`fosslight_util`은 **GitHub main**, PyPI 아님) |
+| **fosslight_dependency tox** | dependency `main` checkout → `tox -e run_ubuntu` / `run_windows` / `run_macos` + `DEP_FL_Dependency` non-empty assert (`fosslight_util`은 **GitHub main**, PyPI 아님) |
 
 | Test | PyPI 설치 | GitHub 설치 | 실행 명령 |
 |------|-----------|-------------|-----------|
 | **fosslight_scanner** | `pip install fosslight_scanner` | util/source/dependency/binary/scanner/android/yocto (git) | `fosslight -w https://github.com/LGE-OSS/example` |
 | **fosslight_yocto** | `pip install fosslight_yocto` | util/source/dependency/binary/scanner/android/yocto (git, scanner와 동일) | `fosslight_yocto -ip … -i … -b … -p … -y … -o test_result` |
-| **fosslight_dependency tox** | (tox가 일시적으로 PyPI util을 깔 수 있음) | dependency checkout + tox env에 util **git force-reinstall** | `tox run -e run_ubuntu` → `assert_dep_results.py` |
+| **fosslight_dependency tox** | (tox가 일시적으로 PyPI util을 깔 수 있음) | dependency checkout + tox env에 util **git force-reinstall** | `TOX_ENV=run_ubuntu|run_windows|run_macos` → `assert_dep_results.py --profile …` |
 
 yocto 테스트 입력은 실행 시 [fosslight_yocto_scanner/test_files](https://github.com/fosslight/fosslight_yocto_scanner/tree/main/test_files)를 저장소 루트 `test_files/`로 받아 사용합니다.  
 (`bom.json`, `installed-packages.txt`, `installed-package-names.txt`, `oss-pkg-info.yaml`, `packages/` 포함)
@@ -58,9 +58,9 @@ scanner / yocto Actions는 **서로 독립**이라, 한쪽 Failure가 다른 쪽
 
 | 결과 | CI 결과 | 설명 |
 |------|---------|------|
-| **tox 성공 + DEP assert 통과** | ✅ Success | `tox run -e run_ubuntu` 종료 코드 0, 모든 `fosslight_report_dep_*.xlsx`의 `DEP_FL_Dependency` **non-empty row ≥ 2** (헤더 + 데이터) |
-| **tox 실패** | ❌ Failure | `tox_ubuntu.log`에 실패 원인 |
-| **DEP assert 실패** | ❌ Failure | 리포트 없음, 시트 누락, 또는 `DEP_FL_Dependency` row &lt; 2 (`assert_dep_results.log`) |
+| **tox 성공 + DEP assert 통과** | ✅ Success | 해당 OS tox 종료 코드 0, `--profile`별 필수 result의 `DEP_FL_Dependency` **non-empty row ≥ 2** |
+| **tox 실패** | ❌ Failure | `tox_<env>.log`에 실패 원인 |
+| **DEP assert 실패** | ❌ Failure | 필수 dir 누락, 리포트 없음, 시트 누락, 또는 row &lt; 2 |
 
 dependency tox도 비교 workflow와 **독립**입니다. util은 항상 `git+https://github.com/fosslight/fosslight_util.git@main`으로 force-reinstall합니다.
 
@@ -116,22 +116,16 @@ pip install fosslight_yocto     # yocto 테스트
 
 ### 3) fosslight_dependency tox
 
+OS matrix: **Ubuntu** (`run_ubuntu`), **Windows** (`run_windows`), **macOS** (`run_macos`).
+
 1. `fosslight_dependency_scanner` **main** clone (`DEP_REPO` / `DEP_REF`)
-2. `tox run -e run_ubuntu --notest` — tox env만 생성 (이 단계에서 util이 PyPI로 깔릴 수 있음)
-3. tox env에 `fosslight_util`을 **GitHub main으로 force-reinstall**
-   ```bash
-   <tox-env>/bin/pip install --upgrade --force-reinstall \
-     git+https://github.com/fosslight/fosslight_util.git@main
-   ```
-4. `tox run -e run_ubuntu --skip-pkg-install` — util 재설치를 막고 fixture 테스트 실행  
-   ([tests](https://github.com/fosslight/fosslight_dependency_scanner/tree/main/tests) fixture)
-5. `scripts/assert_dep_results.py`로 `tests/result` 아래 `fosslight_report_dep_*.xlsx`의 `DEP_FL_Dependency` row ≥ 2 검사
+2. fixture 준비: Flutter `pub get`, Go `mod download` (ubuntu/windows), macOS는 `pod install`
+3. `tox run -e $TOX_ENV --notest` — tox env만 생성 (이 단계에서 util이 PyPI로 깔릴 수 있음)
+4. tox env에 `fosslight_util`을 **GitHub main으로 force-reinstall**
+5. `tox run -e $TOX_ENV --skip-pkg-install` — util 재설치를 막고 fixture 테스트 실행
+6. `scripts/assert_dep_results.py --profile ubuntu|windows|macos`로 필수 result dir의 DEP row ≥ 2 검사
 
-결과:
-
-- tox + assert 모두 성공 → 종료 코드 `0`
-- 하나라도 실패 → 해당 종료 코드로 Failure
-
+환경 변수: `TOX_ENV`, `ASSERT_PROFILE`, `UTIL_GIT`, `DEP_REPO`, `DEP_REF`, `KEEP_WORK`
 ## 스케줄 (GitHub Actions)
 
 테스트별로 **별도 workflow**로 실행됩니다.
@@ -141,7 +135,7 @@ pip install fosslight_yocto     # yocto 테스트
 | **Daily fosslight_scanner Test** | [`.github/workflows/daily_scanner_test.yml`](.github/workflows/daily_scanner_test.yml) | `scripts/run_scanner_test.sh` |
 | **Daily fosslight_yocto Test** | [`.github/workflows/daily_yocto_test.yml`](.github/workflows/daily_yocto_test.yml) | `scripts/run_yocto_test.sh` |
 | **Daily fosslight_scanner Build** | [`.github/workflows/daily_scanner_build.yml`](.github/workflows/daily_scanner_build.yml) | `fosslight/fosslight_scanner` main checkout → example 스캔 + tox |
-| **Daily fosslight_dependency Tox** | [`.github/workflows/daily_dependency_tox.yml`](.github/workflows/daily_dependency_tox.yml) | `scripts/run_dependency_tox.sh` (util@git main) |
+| **Daily fosslight_dependency Tox** | [`.github/workflows/daily_dependency_tox.yml`](.github/workflows/daily_dependency_tox.yml) | `scripts/run_dependency_tox.sh` — Ubuntu/Windows/macOS matrix, util@git main |
 
 | 시각 (KST) | cron | 대상 |
 |------------|------|------|
@@ -173,7 +167,9 @@ Python 3.10+ 가 필요합니다. (dependency tox는 tox·Java 17·npm `license-
 chmod +x scripts/*.sh scripts/*.py
 ./scripts/run_scanner_test.sh        # scanner만
 ./scripts/run_yocto_test.sh          # yocto만
-./scripts/run_dependency_tox.sh      # dependency tox (util=git main)
+./scripts/run_dependency_tox.sh                 # ubuntu (default)
+TOX_ENV=run_windows ASSERT_PROFILE=windows ./scripts/run_dependency_tox.sh
+TOX_ENV=run_macos ASSERT_PROFILE=macos ./scripts/run_dependency_tox.sh
 ./scripts/run_daily_test.sh          # 로컬에서 scanner+yocto 실행 (선택)
 ```
 
@@ -196,8 +192,8 @@ DEP_REF=main KEEP_WORK=1 \
 ./scripts/run_dependency_tox.sh
 ```
 
-`run_dependency_tox.sh`는 [fosslight_dependency_scanner/tests](https://github.com/fosslight/fosslight_dependency_scanner/tree/main/tests) fixture로 `tox -e run_ubuntu`를 돌립니다.  
-tox가 처음에 PyPI util을 깔 수 있으므로, 테스트 실행 전에 tox env에 `fosslight_util`을 **GitHub main으로 force-reinstall**한 뒤 `--skip-pkg-install`로 재설치를 막습니다. 이어서 `tests/result/**/fosslight_report_dep_*.xlsx`의 `DEP_FL_Dependency` row ≥ 2도 검사합니다.
+`run_dependency_tox.sh`는 [fosslight_dependency_scanner/tests](https://github.com/fosslight/fosslight_dependency_scanner/tree/main/tests) fixture로 `TOX_ENV`(기본 `run_ubuntu`)를 돌립니다.  
+tox가 처음에 PyPI util을 깔 수 있으므로, 테스트 실행 전에 tox env에 `fosslight_util`을 **GitHub main으로 force-reinstall**한 뒤 `--skip-pkg-install`로 재설치를 막습니다. 이어서 `assert_dep_results.py --profile …`로 필수 DEP row ≥ 2를 검사합니다.
 
 결과는 `results/<timestamp>/` 아래에 저장됩니다.
 
@@ -209,9 +205,9 @@ tox가 처음에 PyPI util을 깔 수 있으므로, 테스트 실행 전에 tox 
 | `yocto/fosslight_report_yocto_pypi.xlsx` | yocto PyPI 결과 |
 | `yocto/fosslight_report_yocto_github.xlsx` | yocto GitHub 결과 |
 | `yocto/excel_diff.md` / `.json` | 시트/셀 비교 표 |
-| `dependency_tox/tox_ubuntu.log` | `tox run -e run_ubuntu` 전체 로그 |
-| `dependency_tox/assert_dep_results.log` | DEP 시트 non-empty assert 로그 |
-| `dependency_tox/job_summary.md` | Job Summary용 요약 (Teams 알림에도 사용) |
+| `dependency_tox/<tox_env>/tox_*.log` | 해당 OS tox 전체 로그 |
+| `dependency_tox/<tox_env>/assert_dep_results.log` | DEP 시트 non-empty assert 로그 |
+| `dependency_tox/<tox_env>/job_summary.md` | Job Summary용 요약 (Teams 알림에도 사용) |
 
 Excel만 따로 비교하려면:
 
@@ -222,7 +218,7 @@ python3 scripts/compare_excel.py path/to/pypi.xlsx path/to/github.xlsx --md diff
 DEP 시트만 따로 검사하려면:
 
 ```bash
-python3 scripts/assert_dep_results.py path/to/tests/result
+python3 scripts/assert_dep_results.py --profile ubuntu path/to/tests/result
 ```
 
 ## 디렉터리 구조
@@ -233,7 +229,7 @@ fosslight_scanner_test/
 │   ├── daily_scanner_test.yml      # fosslight_scanner PyPI vs GitHub 비교
 │   ├── daily_yocto_test.yml        # fosslight_yocto PyPI vs GitHub 비교
 │   ├── daily_scanner_build.yml     # fosslight_scanner main daily build + tox
-│   └── daily_dependency_tox.yml    # dependency tox (util@git main), 01:00 KST
+│   └── daily_dependency_tox.yml    # dependency tox Ubuntu/Windows/macOS, util@git, 01:00 KST
 ├── docs/
 ├── scripts/
 │   ├── common.sh
