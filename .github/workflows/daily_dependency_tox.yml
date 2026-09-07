@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: Apache-2.0
+# Daily fosslight_dependency tox with fosslight_util from GitHub main (not PyPI).
+name: Daily fosslight_dependency Tox
+
+on:
+  schedule:
+    # UTC 16:00 = KST 01:00 (once daily; heavy package-manager matrix)
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-fosslight-dependency-tox
+  cancel-in-progress: false
+
+jobs:
+  dependency-tox:
+    name: dependency tox (util@git main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java (Gradle fixtures)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git \
+            build-essential \
+            libxml2-dev \
+            libxslt-dev
+          sudo npm install -g license-checker
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh scripts/*.py
+
+      - name: Install openpyxl for DEP sheet assert
+        run: python -m pip install --upgrade pip openpyxl
+
+      - name: Run fosslight_dependency tox (util from git main)
+        env:
+          RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox
+          WORK_DIR: ${{ github.workspace }}/.work
+          KEEP_WORK: "0"
+          DEP_REF: main
+          UTIL_GIT: git+https://github.com/fosslight/fosslight_util.git@main
+        run: ./scripts/run_dependency_tox.sh
+
+      - name: Upload dependency tox artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fosslight-dependency-tox-${{ github.run_id }}
+          path: results/${{ github.run_id }}/dependency_tox/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Notify Teams on failure
+        if: failure()
+        uses: ./.github/actions/notify-teams-failure
+        with:
+          webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          detail: "fosslight_dependency tox failed (fosslight_util installed from GitHub main)."
+          summary_file: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/job_summary.md

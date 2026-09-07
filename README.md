@@ -21,6 +21,7 @@ FOSSLight Scanner 계열 패키지의 **PyPI 배포본**과 **GitHub 최신 소�
 | **fosslight_scanner 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_yocto 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_scanner daily build** | GitHub `main` checkout → example 스캔 + `tox -e test_run` (Python 3.10–3.14) |
+| **fosslight_dependency tox** | dependency `main` checkout → `tox -e run_ubuntu` + DEP 시트 non-empty assert (`fosslight_util`은 **GitHub main**, PyPI 아님) |
 
 | Test | PyPI 설치 | GitHub 설치 | 실행 명령 |
 |------|-----------|-------------|-----------|
@@ -107,11 +108,13 @@ pip install fosslight_yocto     # yocto 테스트
 | **Daily fosslight_scanner Test** | [`.github/workflows/daily_scanner_test.yml`](.github/workflows/daily_scanner_test.yml) | `scripts/run_scanner_test.sh` |
 | **Daily fosslight_yocto Test** | [`.github/workflows/daily_yocto_test.yml`](.github/workflows/daily_yocto_test.yml) | `scripts/run_yocto_test.sh` |
 | **Daily fosslight_scanner Build** | [`.github/workflows/daily_scanner_build.yml`](.github/workflows/daily_scanner_build.yml) | `fosslight/fosslight_scanner` main checkout → example 스캔 + tox |
+| **Daily fosslight_dependency Tox** | [`.github/workflows/daily_dependency_tox.yml`](.github/workflows/daily_dependency_tox.yml) | `scripts/run_dependency_tox.sh` (util@git main) |
 
 | 시각 (KST) | cron | 대상 |
 |------------|------|------|
 | 09:00 / 11:00 / 16:00 | `0 9,11,16 * * *` (`Asia/Seoul`) | scanner / yocto 비교 |
 | 00:30 | `30 15 * * *` (UTC) | scanner daily build |
+| 01:00 | `0 16 * * *` (UTC) | dependency tox (util@git main) |
 
 수동 실행: Actions 탭에서 각 workflow의 **Run workflow** 로 개별 실행할 수 있습니다.
 
@@ -135,8 +138,12 @@ Python 3.10+ 가 필요합니다.
 chmod +x scripts/*.sh scripts/*.py
 ./scripts/run_scanner_test.sh        # scanner만
 ./scripts/run_yocto_test.sh          # yocto만
-./scripts/run_daily_test.sh          # 로컬에서 둘 다 실행 (선택)
+./scripts/run_dependency_tox.sh      # dependency tox (util=git main)
+./scripts/run_daily_test.sh          # 로컬에서 scanner+yocto 실행 (선택)
 ```
+
+`run_dependency_tox.sh`는 [fosslight_dependency_scanner/tests](https://github.com/fosslight/fosslight_dependency_scanner/tree/main/tests) fixture로 `tox -e run_ubuntu`를 돌립니다.  
+tox가 처음에 PyPI util을 깔 수 있으므로, 테스트 실행 전에 tox env에 `fosslight_util`을 **GitHub main으로 force-reinstall**한 뒤 `--skip-pkg-install`로 재설치를 막습니다. 이어서 `tests/result/**/fosslight_report_dep_*.xlsx`의 `DEP_FL_Dependency` row ≥ 2도 검사합니다.
 
 결과는 `results/<timestamp>/` 아래에 저장됩니다.
 
@@ -160,17 +167,20 @@ python3 scripts/compare_excel.py path/to/pypi.xlsx path/to/github.xlsx --md diff
 ```text
 fosslight_scanner_test/
 ├── .github/workflows/
-│   ├── daily_scanner_test.yml    # fosslight_scanner PyPI vs GitHub 비교
-│   ├── daily_yocto_test.yml      # fosslight_yocto PyPI vs GitHub 비교
-│   └── daily_scanner_build.yml   # fosslight_scanner main daily build + tox
+│   ├── daily_scanner_test.yml      # fosslight_scanner PyPI vs GitHub 비교
+│   ├── daily_yocto_test.yml        # fosslight_yocto PyPI vs GitHub 비교
+│   ├── daily_scanner_build.yml     # fosslight_scanner main daily build + tox
+│   └── daily_dependency_tox.yml    # dependency tox (util@git main)
 ├── docs/
 ├── scripts/
 │   ├── common.sh
-│   ├── compare_excel.py          # 시트/셀 단위 비교 → 표
+│   ├── compare_excel.py            # 시트/셀 단위 비교 → 표
+│   ├── assert_dep_results.py       # DEP_FL_Dependency non-empty 검사
 │   ├── run_scanner_test.sh
 │   ├── run_yocto_test.sh
-│   ├── run_daily_test.sh         # 로컬 전체 실행(선택)
-│   └── run_fosslight_compare.py  # (optional) BOM compare
+│   ├── run_dependency_tox.sh       # dependency tox + util@git
+│   ├── run_daily_test.sh           # 로컬 scanner+yocto (선택)
+│   └── run_fosslight_compare.py    # (optional) BOM compare
 ├── README.md
 └── LICENSE
 ```
