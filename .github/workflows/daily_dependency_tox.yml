@@ -23,36 +23,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
-          # Ubuntu: broad Python coverage (PR CI stays on 3.14 only)
           - os: ubuntu-latest
             tox_env: run_ubuntu
             assert_profile: ubuntu
-            python-version: "3.10"
-          - os: ubuntu-latest
-            tox_env: run_ubuntu
-            assert_profile: ubuntu
-            python-version: "3.11"
-          - os: ubuntu-latest
-            tox_env: run_ubuntu
-            assert_profile: ubuntu
-            python-version: "3.12"
-          - os: ubuntu-latest
-            tox_env: run_ubuntu
-            assert_profile: ubuntu
-            python-version: "3.13"
-          - os: ubuntu-latest
-            tox_env: run_ubuntu
-            assert_profile: ubuntu
-            python-version: "3.14"
           - os: windows-latest
             tox_env: run_windows
             assert_profile: windows
-            python-version: "3.14"
           - os: macos-latest
             tox_env: run_macos
             assert_profile: macos
-            python-version: "3.14"
 
     steps:
       - name: Checkout
