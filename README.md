@@ -21,7 +21,7 @@ FOSSLight Scanner 계열 패키지를 자동으로 검증하는 저장소입니�
 | **fosslight_scanner 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_yocto 비교** | PyPI vs GitHub 설치본 Excel 시트/셀 비교 (`Scanner Info` 제외) |
 | **fosslight_scanner daily build** | GitHub `main` checkout → example 스캔 + `tox -e test_run` (Python 3.10–3.14) |
-| **fosslight_dependency tox** | dependency `main` checkout → `tox -e run_ubuntu` / `run_windows` / `run_macos` + `DEP_FL_Dependency` non-empty assert (`fosslight_util`은 **GitHub main**, PyPI 아님) |
+| **fosslight_dependency tox** | dependency `main` checkout → Ubuntu `run_ubuntu` **py3.10–3.14** + Windows/macOS **py3.14** + `DEP_FL_Dependency` non-empty assert (`fosslight_util`은 **GitHub main**, PyPI 아님) |
 
 | Test | PyPI 설치 | GitHub 설치 | 실행 명령 |
 |------|-----------|-------------|-----------|
@@ -116,7 +116,7 @@ pip install fosslight_yocto     # yocto 테스트
 
 ### 3) fosslight_dependency tox
 
-OS matrix: **Ubuntu** (`run_ubuntu`), **Windows** (`run_windows`), **macOS** (`run_macos`).
+OS matrix: **Ubuntu** (`run_ubuntu`, Python **3.10–3.14**), **Windows** / **macOS** (`run_windows` / `run_macos`, Python **3.14**).
 
 1. `fosslight_dependency_scanner` **main** clone (`DEP_REPO` / `DEP_REF`)
 2. fixture 준비: Flutter `pub get`, Go `mod download` (ubuntu/windows), macOS는 `pod install`
@@ -135,13 +135,13 @@ OS matrix: **Ubuntu** (`run_ubuntu`), **Windows** (`run_windows`), **macOS** (`r
 | **Daily fosslight_scanner Test** | [`.github/workflows/daily_scanner_test.yml`](.github/workflows/daily_scanner_test.yml) | `scripts/run_scanner_test.sh` |
 | **Daily fosslight_yocto Test** | [`.github/workflows/daily_yocto_test.yml`](.github/workflows/daily_yocto_test.yml) | `scripts/run_yocto_test.sh` |
 | **Daily fosslight_scanner Build** | [`.github/workflows/daily_scanner_build.yml`](.github/workflows/daily_scanner_build.yml) | `fosslight/fosslight_scanner` main checkout → example 스캔 + tox |
-| **Daily fosslight_dependency Tox** | [`.github/workflows/daily_dependency_tox.yml`](.github/workflows/daily_dependency_tox.yml) | `scripts/run_dependency_tox.sh` — Ubuntu/Windows/macOS matrix, util@git main |
+| **Daily fosslight_dependency Tox** | [`.github/workflows/daily_dependency_tox.yml`](.github/workflows/daily_dependency_tox.yml) | `scripts/run_dependency_tox.sh` — Ubuntu py3.10–3.14 + Windows/macOS py3.14, util@git main |
 
 | 시각 (KST) | cron | 대상 |
 |------------|------|------|
 | 09:00 / 11:00 / 16:00 | `0 9,11,16 * * *` (`Asia/Seoul`) | scanner / yocto 비교 |
-| 00:30 | `30 15 * * *` (UTC) | scanner daily build |
-| **01:00** | **`0 16 * * *` (UTC)** | **Daily fosslight_dependency Tox** |
+| 09:00 | `0 0 * * *` (UTC) | scanner daily build |
+| 09:00 | `0 0 * * *` (UTC) | Daily fosslight_dependency Tox |
 
 수동 실행: Actions 탭에서 각 workflow의 **Run workflow** 로 개별 실행할 수 있습니다.
 
@@ -229,7 +229,7 @@ fosslight_scanner_test/
 │   ├── daily_scanner_test.yml      # fosslight_scanner PyPI vs GitHub 비교
 │   ├── daily_yocto_test.yml        # fosslight_yocto PyPI vs GitHub 비교
 │   ├── daily_scanner_build.yml     # fosslight_scanner main daily build + tox
-│   └── daily_dependency_tox.yml    # dependency tox Ubuntu/Windows/macOS, util@git, 01:00 KST
+│   └── daily_dependency_tox.yml    # dependency tox Ubuntu py3.10–3.14 + Win/macOS py3.14, util@git, 09:00 KST
 ├── docs/
 ├── scripts/
 │   ├── common.sh

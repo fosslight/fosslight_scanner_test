@@ -4,8 +4,8 @@ name: Daily fosslight_dependency Tox
 
 on:
   schedule:
-    # UTC 16:00 = KST 01:00 (once daily; heavy package-manager matrix)
-    - cron: "0 16 * * *"
+    # UTC 00:00 = KST 09:00 (once daily; heavy package-manager matrix)
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -17,22 +17,42 @@ concurrency:
 
 jobs:
   dependency-tox:
-    name: dependency tox ${{ matrix.tox_env }} (util@git main)
+    name: dependency tox ${{ matrix.tox_env }} py${{ matrix.python-version }} (util@git main)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Ubuntu: broad Python coverage (PR CI stays on 3.14 only)
           - os: ubuntu-latest
             tox_env: run_ubuntu
             assert_profile: ubuntu
+            python-version: "3.10"
+          - os: ubuntu-latest
+            tox_env: run_ubuntu
+            assert_profile: ubuntu
+            python-version: "3.11"
+          - os: ubuntu-latest
+            tox_env: run_ubuntu
+            assert_profile: ubuntu
+            python-version: "3.12"
+          - os: ubuntu-latest
+            tox_env: run_ubuntu
+            assert_profile: ubuntu
+            python-version: "3.13"
+          - os: ubuntu-latest
+            tox_env: run_ubuntu
+            assert_profile: ubuntu
+            python-version: "3.14"
           - os: windows-latest
             tox_env: run_windows
             assert_profile: windows
+            python-version: "3.14"
           - os: macos-latest
             tox_env: run_macos
             assert_profile: macos
+            python-version: "3.14"
 
     steps:
       - name: Checkout
@@ -41,7 +61,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up Java (Gradle fixtures)
         if: matrix.tox_env != 'run_macos'
@@ -72,6 +92,10 @@ jobs:
             libxml2-dev \
             libxslt-dev
           sudo npm install -g license-checker
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
@@ -96,8 +120,8 @@ jobs:
       - name: Run fosslight_dependency tox (util from git main)
         shell: bash
         env:
-          RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}
-          WORK_DIR: ${{ github.workspace }}/.work/${{ matrix.tox_env }}
+          RESULT_DIR: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/py${{ matrix.python-version }}
+          WORK_DIR: ${{ github.workspace }}/.work/${{ matrix.tox_env }}/py${{ matrix.python-version }}
           KEEP_WORK: "0"
           DEP_REF: main
           UTIL_GIT: git+https://github.com/fosslight/fosslight_util.git@main
@@ -110,8 +134,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fosslight-dependency-tox-${{ matrix.tox_env }}-${{ github.run_id }}
-          path: results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/
+          name: fosslight-dependency-tox-${{ matrix.tox_env }}-py${{ matrix.python-version }}-${{ github.run_id }}
+          path: results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/py${{ matrix.python-version }}/
           if-no-files-found: warn
           retention-days: 30
 
@@ -120,5 +144,5 @@ jobs:
         uses: ./.github/actions/notify-teams-failure
         with:
           webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          detail: "fosslight_dependency ${{ matrix.tox_env }} failed (fosslight_util from GitHub main)."
-          summary_file: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/job_summary.md
+          detail: "fosslight_dependency ${{ matrix.tox_env }} py${{ matrix.python-version }} failed (fosslight_util from GitHub main)."
+          summary_file: ${{ github.workspace }}/results/${{ github.run_id }}/dependency_tox/${{ matrix.tox_env }}/py${{ matrix.python-version }}/job_summary.md

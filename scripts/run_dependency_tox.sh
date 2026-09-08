@@ -72,6 +72,15 @@ else
   log "WARNING: go not on PATH; mod tests may produce empty DEP sheets"
 fi
 
+if [[ "${TOX_ENV}" == "run_ubuntu" ]] && command -v helm >/dev/null 2>&1; then
+  log "Helm repo add for fixtures"
+  helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
+  helm repo add jetstack https://charts.jetstack.io 2>/dev/null || true
+  helm repo update
+elif [[ "${TOX_ENV}" == "run_ubuntu" ]]; then
+  log "WARNING: helm not on PATH; helm tests may produce empty DEP sheets"
+fi
+
 if [[ "${TOX_ENV}" == "run_macos" ]]; then
   if ! command -v pod >/dev/null 2>&1; then
     echo "ERROR: pod not found; CocoaPods is required for run_macos" >&2
