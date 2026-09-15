@@ -17,13 +17,35 @@ GIT_PACKAGES=(
   "git+https://github.com/fosslight/fosslight_yocto_scanner.git"
 )
 
+to_bash_path() {
+  local path="$1"
+  if [[ "${path}" =~ ^[[:alpha:]]:[\\/] ]] && command -v cygpath >/dev/null 2>&1; then
+    cygpath --unix "${path}"
+  else
+    printf '%s\n' "${path}"
+  fi
+}
+
+activate_venv() {
+  local venv_dir="$1"
+  if [[ -f "${venv_dir}/bin/activate" ]]; then
+    # shellcheck disable=SC1090
+    source "${venv_dir}/bin/activate"
+  elif [[ -f "${venv_dir}/Scripts/activate" ]]; then
+    # shellcheck disable=SC1090
+    source "${venv_dir}/Scripts/activate"
+  else
+    echo "ERROR: virtualenv activation script not found under ${venv_dir}" >&2
+    return 1
+  fi
+}
+
 create_venv() {
   local venv_dir="$1"
   local python_bin="${2:-python3}"
   rm -rf "${venv_dir}"
   "${python_bin}" -m venv "${venv_dir}"
-  # shellcheck disable=SC1090
-  source "${venv_dir}/bin/activate"
+  activate_venv "${venv_dir}"
   python -m pip install --upgrade pip setuptools wheel
   deactivate
 }
