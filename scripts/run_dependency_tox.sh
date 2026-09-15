@@ -142,7 +142,7 @@ PY
 LOG_NAME="tox_${TOX_ENV}.log"
 log "Running tox ${TOX_ENV} with --skip-pkg-install (keep util from git)"
 set +e
-tox run -e "${TOX_ENV}" --skip-pkg-install 2>&1 | tee "${RESULT_DIR}/${LOG_NAME}"
+FOSSLIGHT_PRESERVE_DAILY_TEST_RESULTS=1 tox run -e "${TOX_ENV}" --skip-pkg-install 2>&1 | tee "${RESULT_DIR}/${LOG_NAME}"
 TOX_RC=${PIPESTATUS[0]}
 set -e
 
@@ -153,6 +153,9 @@ python "${ROOT_DIR}/scripts/assert_dep_results.py" \
   "${DEP_DIR}/tests/result" 2>&1 | tee "${RESULT_DIR}/assert_dep_results.log"
 ASSERT_RC=${PIPESTATUS[0]}
 set -e
+
+log "Removing preserved dependency test results"
+rm -rf "${DEP_DIR}/tests/result"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
