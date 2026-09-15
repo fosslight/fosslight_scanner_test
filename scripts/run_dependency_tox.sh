@@ -16,6 +16,11 @@ RESULT_DIR="${RESULT_DIR:-${ROOT_DIR}/results/$(date +%Y%m%d_%H%M%S)/dependency_
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 KEEP_WORK="${KEEP_WORK:-0}"
 
+# GitHub Actions passes workspace paths as D:\... on Windows, while this
+# script executes in Git Bash and needs /d/... paths for shell file commands.
+WORK_DIR="$(to_bash_path "${WORK_DIR}")"
+RESULT_DIR="$(to_bash_path "${RESULT_DIR}")"
+
 DEP_REPO="${DEP_REPO:-https://github.com/fosslight/fosslight_dependency_scanner.git}"
 DEP_REF="${DEP_REF:-main}"
 UTIL_GIT="${UTIL_GIT:-git+https://github.com/fosslight/fosslight_util.git@main}"
@@ -44,8 +49,7 @@ log "tox env: ${TOX_ENV} (assert profile: ${ASSERT_PROFILE})"
 
 log "Creating virtualenv for tox host"
 create_venv "${VENV_DIR}" "${PYTHON_BIN}"
-# shellcheck disable=SC1090
-source "${VENV_DIR}/bin/activate"
+activate_venv "${VENV_DIR}"
 python -m pip install --upgrade pip setuptools wheel tox openpyxl
 
 log "Cloning fosslight_dependency_scanner (${DEP_REF})"
