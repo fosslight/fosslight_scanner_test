@@ -25,6 +25,11 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
+      - name: Checkout fosslight_scanner_test
+        uses: actions/checkout@v4
+        with:
+          path: scanner_test
+
       - name: Checkout fosslight_scanner
         uses: actions/checkout@v4
         with:
@@ -62,7 +67,9 @@ jobs:
       - name: Run Tox
         working-directory: fosslight_scanner
         run: |
-          tox -e test_run
+          # Python 3.14 aborts at shutdown if TimerThread's spinner daemon is
+          # still writing to stderr. Patch the tox env after deps install.
+          tox -e test_run --override "testenv:test_run.commands_pre=python ${GITHUB_WORKSPACE}/scanner_test/scripts/patch_timer_thread.py ${GITHUB_WORKSPACE}/fosslight_scanner/.tox/test_run"
 
   notify-on-failure:
     name: Notify Teams on failure
